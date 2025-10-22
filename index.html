@@ -150,13 +150,18 @@
                         return;
                     }
 
+                    // Get file's last modified date as fallback
+                    const fileDate = file.lastModified ? new Date(file.lastModified) : new Date();
+                    const formattedDate = fileDate.toISOString().split('T')[0];
+
                     const reader = new FileReader();
                     reader.onloadend = () => {
                         setNewEntry({
                             ...newEntry,
                             imageData: reader.result,
                             imagePreview: reader.result,
-                            filename: newEntry.filename || file.name
+                            filename: newEntry.filename || file.name,
+                            sharepointDate: newEntry.sharepointDate || formattedDate
                         });
                     };
                     reader.readAsDataURL(file);
