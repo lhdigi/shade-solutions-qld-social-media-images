@@ -64,14 +64,6 @@
             </svg>
         );
 
-        const Image = () => (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                <polyline points="21 15 16 10 5 21"></polyline>
-            </svg>
-        );
-
         const X = () => (
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -79,7 +71,19 @@
             </svg>
         );
 
-        // Simple localStorage wrapper to mimic Claude's storage API
+        const ThumbsUp = () => (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path>
+            </svg>
+        );
+
+        const ThumbsDown = () => (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"></path>
+            </svg>
+        );
+
+        // Simple localStorage wrapper
         const storage = {
             get: (key) => {
                 try {
@@ -190,9 +194,10 @@
                     sharepointDate: newEntry.sharepointDate,
                     imageData: newEntry.imageData,
                     productName: '',
-                    productBrand: '',
-                    colour: '',
-                    installDetails: '',
+                    supplier: '',
+                    reasonForInstall: '',
+                    additionalNotes: '',
+                    approvalStatus: null,
                     completed: false,
                     addedDate: new Date().toISOString()
                 };
@@ -209,19 +214,34 @@
                 });
             };
 
+            const handleApproval = (id, approved) => {
+                const updated = images.map(img => {
+                    if (img.id === id) {
+                        return {
+                            ...img,
+                            approvalStatus: approved,
+                            completed: !approved
+                        };
+                    }
+                    return img;
+                });
+                saveData(updated);
+            };
+
             const updateImage = (id, field, value) => {
                 const updated = images.map(img => {
                     if (img.id === id) {
-                        const updatedImg = { ...img, [field]: value };
-                        if (field !== 'completed') {
-                            updatedImg.completed = !!(
-                                updatedImg.productName &&
-                                updatedImg.productBrand &&
-                                updatedImg.colour &&
-                                updatedImg.installDetails
-                            );
-                        }
-                        return updatedImg;
+                        return { ...img, [field]: value };
+                    }
+                    return img;
+                });
+                saveData(updated);
+            };
+
+            const markAsCompleted = (id) => {
+                const updated = images.map(img => {
+                    if (img.id === id) {
+                        return { ...img, completed: true };
                     }
                     return img;
                 });
@@ -234,6 +254,12 @@
                     saveData(updated);
                 }
             };
+
+            // Sort images: pending first, completed last
+            const sortedImages = [...images].sort((a, b) => {
+                if (a.completed === b.completed) return 0;
+                return a.completed ? 1 : -1;
+            });
 
             const stats = {
                 total: images.length,
@@ -254,10 +280,10 @@
                     <div className="max-w-7xl mx-auto">
                         <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
                             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                                Shade Solutions QLD - Image Details Tracker
+                                Shade Solutions QLD - Social Media Image Details
                             </h1>
                             <p className="text-gray-600 mb-4">
-                                Share this link with Shade Solutions QLD to collaboratively fill in product details
+                                Please fill in the product details below.
                             </p>
                             
                             <div className="grid grid-cols-3 gap-4">
@@ -354,7 +380,7 @@
                         </div>
 
                         <div className="space-y-4">
-                            {images.length === 0 ? (
+                            {sortedImages.length === 0 ? (
                                 <div className="bg-white rounded-lg shadow-sm p-12 text-center">
                                     <div className="inline-block mb-4 text-gray-400">
                                         <AlertCircle />
@@ -362,7 +388,7 @@
                                     <p className="text-gray-600">No images added yet. Add your first entry above!</p>
                                 </div>
                             ) : (
-                                images.map((img) => (
+                                sortedImages.map((img) => (
                                     <div
                                         key={img.id}
                                         className={`bg-white rounded-lg shadow-sm p-6 border-l-4 ${
@@ -411,56 +437,110 @@
                                             </button>
                                         </div>
 
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                    Product Name
-                                                </label>
-                                                <input
-                                                    type="text"
-                                                    value={img.productName}
-                                                    onChange={(e) => updateImage(img.id, 'productName', e.target.value)}
-                                                    placeholder="Enter product name"
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                                />
+                                        {/* Approval Section */}
+                                        {img.approvalStatus === null && !img.completed && (
+                                            <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                                                <p className="text-lg font-semibold text-gray-900 mb-3">
+                                                    Are you happy for me to upload this job?
+                                                </p>
+                                                <div className="flex gap-3">
+                                                    <button
+                                                        onClick={() => handleApproval(img.id, true)}
+                                                        className="flex items-center gap-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                                                    >
+                                                        <ThumbsUp />
+                                                        Yes, Continue
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleApproval(img.id, false)}
+                                                        className="flex items-center gap-2 px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                                                    >
+                                                        <ThumbsDown />
+                                                        No, Skip This
+                                                    </button>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                    Product Brand
-                                                </label>
-                                                <input
-                                                    type="text"
-                                                    value={img.productBrand}
-                                                    onChange={(e) => updateImage(img.id, 'productBrand', e.target.value)}
-                                                    placeholder="Enter brand"
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                                />
+                                        )}
+
+                                        {/* Details Form - Only show if approved */}
+                                        {img.approvalStatus === true && !img.completed && (
+                                            <>
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                                    <div>
+                                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                            Product Name / Description
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            value={img.productName}
+                                                            onChange={(e) => updateImage(img.id, 'productName', e.target.value)}
+                                                            placeholder="Enter product name/description"
+                                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                            Supplier / Manufacturer
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            value={img.supplier}
+                                                            onChange={(e) => updateImage(img.id, 'supplier', e.target.value)}
+                                                            placeholder="Enter supplier/manufacturer"
+                                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                        />
+                                                    </div>
+                                                    <div className="md:col-span-2">
+                                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                            Reason For Install
+                                                        </label>
+                                                        <textarea
+                                                            value={img.reasonForInstall}
+                                                            onChange={(e) => updateImage(img.id, 'reasonForInstall', e.target.value)}
+                                                            placeholder="Enter reason for install"
+                                                            rows="2"
+                                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                        />
+                                                    </div>
+                                                    <div className="md:col-span-2">
+                                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                            Additional Notes
+                                                        </label>
+                                                        <textarea
+                                                            value={img.additionalNotes}
+                                                            onChange={(e) => updateImage(img.id, 'additionalNotes', e.target.value)}
+                                                            placeholder="Enter any additional notes"
+                                                            rows="2"
+                                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <button
+                                                    onClick={() => markAsCompleted(img.id)}
+                                                    className="flex items-center gap-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                                                >
+                                                    <CheckCircle />
+                                                    All Information Added - Mark Complete
+                                                </button>
+                                            </>
+                                        )}
+
+                                        {/* Show completed info */}
+                                        {img.completed && (
+                                            <div className="bg-green-50 p-4 rounded-lg">
+                                                {img.approvalStatus === false ? (
+                                                    <p className="text-green-900 font-medium">✓ Marked as not for upload</p>
+                                                ) : (
+                                                    <div className="space-y-2 text-sm">
+                                                        <p className="text-green-900 font-medium mb-3">✓ Completed</p>
+                                                        {img.productName && <p><span className="font-medium">Product:</span> {img.productName}</p>}
+                                                        {img.supplier && <p><span className="font-medium">Supplier:</span> {img.supplier}</p>}
+                                                        {img.reasonForInstall && <p><span className="font-medium">Reason:</span> {img.reasonForInstall}</p>}
+                                                        {img.additionalNotes && <p><span className="font-medium">Notes:</span> {img.additionalNotes}</p>}
+                                                    </div>
+                                                )}
                                             </div>
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                    Colour
-                                                </label>
-                                                <input
-                                                    type="text"
-                                                    value={img.colour}
-                                                    onChange={(e) => updateImage(img.id, 'colour', e.target.value)}
-                                                    placeholder="Enter colour"
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                    Install Details
-                                                </label>
-                                                <input
-                                                    type="text"
-                                                    value={img.installDetails}
-                                                    onChange={(e) => updateImage(img.id, 'installDetails', e.target.value)}
-                                                    placeholder="Enter install details"
-                                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                                />
-                                            </div>
-                                        </div>
+                                        )}
                                     </div>
                                 ))
                             )}
