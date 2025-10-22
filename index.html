@@ -280,10 +280,10 @@
                     <div className="max-w-7xl mx-auto">
                         <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
                             <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                                Shade Solutions QLD - Social Media Image Details
+                                Shade Solutions QLD - Image Details Tracker
                             </h1>
                             <p className="text-gray-600 mb-4">
-                                Please fill in the product details below.
+                                Please fill in image details below.
                             </p>
                             
                             <div className="grid grid-cols-3 gap-4">
@@ -396,37 +396,28 @@
                                         }`}
                                     >
                                         <div className="flex items-start justify-between mb-4">
-                                            <div className="flex gap-6 flex-1">
-                                                {img.imageData && (
-                                                    <img 
-                                                        src={img.imageData} 
-                                                        alt={img.filename}
-                                                        className="w-96 h-auto object-contain rounded-lg shadow-md"
-                                                    />
-                                                )}
-                                                <div className="flex-1">
-                                                    <div className="flex items-center gap-2 mb-2">
-                                                        <span className={img.completed ? 'text-green-500' : 'text-yellow-500'}>
-                                                            {img.completed ? <CheckCircle /> : <AlertCircle />}
-                                                        </span>
-                                                        <h3 className="text-lg font-semibold text-gray-900">{img.filename}</h3>
-                                                    </div>
-                                                    {img.location && (
-                                                        <p className="text-sm text-gray-600 mb-1">
-                                                            <span className="font-medium">Location:</span> {img.location}
-                                                        </p>
-                                                    )}
-                                                    {img.sharepointDate && (
-                                                        <p className="text-sm text-gray-600 mb-1">
-                                                            <span className="font-medium">SharePoint Date:</span> {new Date(img.sharepointDate).toLocaleDateString('en-AU', { year: 'numeric', month: 'long', day: 'numeric' })}
-                                                        </p>
-                                                    )}
-                                                    {img.suggestedTopic && (
-                                                        <p className="text-sm text-gray-600">
-                                                            <span className="font-medium">Suggested Topic:</span> {img.suggestedTopic}
-                                                        </p>
-                                                    )}
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <span className={img.completed ? 'text-green-500' : 'text-yellow-500'}>
+                                                        {img.completed ? <CheckCircle /> : <AlertCircle />}
+                                                    </span>
+                                                    <h3 className="text-lg font-semibold text-gray-900">{img.filename}</h3>
                                                 </div>
+                                                {img.location && (
+                                                    <p className="text-sm text-gray-600 mb-1">
+                                                        <span className="font-medium">Location:</span> {img.location}
+                                                    </p>
+                                                )}
+                                                {img.sharepointDate && (
+                                                    <p className="text-sm text-gray-600 mb-1">
+                                                        <span className="font-medium">SharePoint Date:</span> {new Date(img.sharepointDate).toLocaleDateString('en-AU', { year: 'numeric', month: 'long', day: 'numeric' })}
+                                                    </p>
+                                                )}
+                                                {img.suggestedTopic && (
+                                                    <p className="text-sm text-gray-600">
+                                                        <span className="font-medium">Suggested Topic:</span> {img.suggestedTopic}
+                                                    </p>
+                                                )}
                                             </div>
                                             <button
                                                 onClick={() => deleteImage(img.id)}
@@ -436,6 +427,16 @@
                                                 <Trash2 />
                                             </button>
                                         </div>
+
+                                        {img.imageData && (
+                                            <div className="mb-4">
+                                                <img 
+                                                    src={img.imageData} 
+                                                    alt={img.filename}
+                                                    className="w-full h-auto object-contain rounded-lg shadow-md"
+                                                />
+                                            </div>
+                                        )}
 
                                         {/* Approval Section */}
                                         {img.approvalStatus === null && !img.completed && (
