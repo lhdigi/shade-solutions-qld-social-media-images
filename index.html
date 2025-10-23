@@ -1,190 +1,254 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Shade Solutions QLD - Local Image Tracker</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Shade Solutions QLD - Image Tracker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-50">
-<div id="root"></div>
+  <div id="root"></div>
 
-<script type="text/babel">
-const { useState } = React;
+  <!-- React + Babel -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-// Icons
-const Plus = () => (<span className="font-bold text-xl">+</span>);
-const X = () => (<span className="font-bold text-red-600">×</span>);
-const CheckCircle = () => (<span className="text-green-600 font-bold">✔</span>);
-const AlertCircle = () => (<span className="text-yellow-600 font-bold">!</span>);
-const ThumbsUp = () => (<span className="text-green-600 font-bold">👍</span>);
-const ThumbsDown = () => (<span className="text-red-600 font-bold">👎</span>);
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-storage-compat.js"></script>
 
-function LocalTracker() {
-    const [images, setImages] = useState([]);
-    const [newEntry, setNewEntry] = useState({ filename: '', suggestedTopic: '', imageFile: null, imagePreview: null });
+  <script type="text/babel">
+    const { useState, useEffect } = React;
 
-    const handleImageUpload = (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
+    // Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyCjT-UjngKoElF2RH1BayCup7CzjIrABBc",
+      authDomain: "shade-solutions-tracker.firebaseapp.com",
+      projectId: "shade-solutions-tracker",
+      storageBucket: "shade-solutions-tracker.firebasestorage.app",
+      messagingSenderId: "347513530369",
+      appId: "1:347513530369:web:93abc25b52819139f2b800"
+    };
 
-        if (file.size > 5 * 1024 * 1024) { // 5MB limit
-            alert("Image too large! Max 5MB.");
-            return;
-        }
+    // Initialise Firebase
+    const app = firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const storage = firebase.storage();
 
+    function ShadeTracker() {
+      const [images, setImages] = useState([]);
+      const [uploading, setUploading] = useState(false);
+      const [uploadCount, setUploadCount] = useState(0);
+
+      // Load images from Firestore
+      useEffect(() => {
+        const unsubscribe = db.collection("images").orderBy("addedDate", "desc").onSnapshot(snapshot => {
+          const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+          setImages(data);
+        });
+        return () => unsubscribe();
+      }, []);
+
+      // Compress image before upload
+      const compressImage = (file) => new Promise((resolve) => {
         const reader = new FileReader();
-        reader.onloadend = () => {
-            setNewEntry({
-                ...newEntry,
-                imageFile: file,
-                imagePreview: reader.result,
-                filename: newEntry.filename || file.name
-            });
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement("canvas");
+            const ctx = canvas.getContext("2d");
+            const MAX_SIZE = 1920;
+            let { width, height } = img;
+
+            if (width > height) {
+              if (width > MAX_SIZE) {
+                height *= MAX_SIZE / width;
+                width = MAX_SIZE;
+              }
+            } else {
+              if (height > MAX_SIZE) {
+                width *= MAX_SIZE / height;
+                height = MAX_SIZE;
+              }
+            }
+            canvas.width = width;
+            canvas.height = height;
+            ctx.drawImage(img, 0, 0, width, height);
+            canvas.toBlob(
+              (blob) => resolve(blob),
+              "image/jpeg",
+              0.85
+            );
+          };
+          img.src = e.target.result;
         };
         reader.readAsDataURL(file);
-    };
+      });
 
-    const removeImage = () => {
-        setNewEntry({ filename: '', suggestedTopic: '', imageFile: null, imagePreview: null });
-    };
+      const handleBulkUpload = async (e) => {
+        const files = Array.from(e.target.files);
+        if (!files.length) return;
 
-    const addImage = () => {
-        if (!newEntry.filename || !newEntry.imagePreview) {
-            alert("Please add a filename and upload an image.");
-            return;
+        setUploading(true);
+        setUploadCount(0);
+
+        for (let i = 0; i < files.length; i++) {
+          const file = files[i];
+          const fileDate = file.lastModified ? new Date(file.lastModified) : new Date();
+          const formattedDate = fileDate.toISOString().split("T")[0];
+
+          try {
+            const compressedBlob = await compressImage(file);
+            const storageRef = storage.ref().child(`uploads/${Date.now()}-${file.name}`);
+            const snapshot = await storageRef.put(compressedBlob);
+            const downloadURL = await snapshot.ref.getDownloadURL();
+
+            await db.collection("images").add({
+              filename: file.name,
+              location: "",
+              suggestedTopic: "",
+              sharepointDate: formattedDate,
+              imageUrl: downloadURL,
+              productName: "",
+              supplier: "",
+              reasonForInstall: "",
+              additionalNotes: "",
+              approvalStatus: null,
+              completed: false,
+              addedDate: new Date().toISOString()
+            });
+
+            setUploadCount(i + 1);
+          } catch (err) {
+            console.error("Error uploading:", err);
+          }
         }
 
-        setImages([{ 
-            id: Date.now(), 
-            ...newEntry, 
-            approvalStatus: null, 
-            productName: '', 
-            supplier: '', 
-            reasonForInstall: '', 
-            additionalNotes: '', 
-            completed: false 
-        }, ...images]);
+        setUploading(false);
+        setUploadCount(0);
+        e.target.value = "";
+      };
 
-        setNewEntry({ filename: '', suggestedTopic: '', imageFile: null, imagePreview: null });
-    };
+      const updateImage = async (id, field, value) => {
+        await db.collection("images").doc(id).update({ [field]: value });
+      };
 
-    const handleApproval = (id, approved) => {
-        setImages(images.map(img => img.id === id ? { ...img, approvalStatus: approved } : img));
-    };
+      const handleApproval = async (id, approved) => {
+        await db.collection("images").doc(id).update({
+          approvalStatus: approved,
+          completed: !approved
+        });
+      };
 
-    const updateImage = (id, field, value) => {
-        setImages(images.map(img => img.id === id ? { ...img, [field]: value } : img));
-    };
+      const markAsCompleted = async (id) => {
+        await db.collection("images").doc(id).update({ completed: true });
+      };
 
-    const markAsCompleted = (id) => {
-        setImages(images.map(img => img.id === id ? { ...img, completed: true } : img));
-    };
+      const deleteImage = async (id) => {
+        if (!confirm("Delete this entry?")) return;
+        await db.collection("images").doc(id).delete();
+      };
 
-    const deleteImage = (id) => {
-        if (!confirm("Delete this image?")) return;
-        setImages(images.filter(img => img.id !== id));
-    };
+      const sortedImages = [...images].sort((a, b) => (a.completed === b.completed ? 0 : a.completed ? 1 : -1));
 
-    return (
-        <div className="min-h-screen p-6 max-w-4xl mx-auto">
-            <h1 className="text-3xl font-bold mb-4">Shade Solutions QLD - Local Image Tracker</h1>
+      const stats = {
+        total: images.length,
+        completed: images.filter((i) => i.completed).length,
+        pending: images.filter((i) => !i.completed).length
+      };
 
-            {/* Add New Image */}
-            <div className="bg-white p-4 rounded-lg shadow mb-6">
-                <h2 className="font-semibold mb-2">Add New Image</h2>
-
-                <div className="mb-4">
-                    {newEntry.imagePreview ? (
-                        <div className="relative inline-block">
-                            <img src={newEntry.imagePreview} alt="Preview" className="h-48 w-auto rounded"/>
-                            <button onClick={removeImage} className="absolute top-1 right-1 p-1 bg-white rounded-full shadow">
-                                <X />
-                            </button>
-                        </div>
-                    ) : (
-                        <label className="flex flex-col items-center justify-center w-full h-48 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
-                            <span className="text-gray-500">Click or drag to upload image (max 5MB)</span>
-                            <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload}/>
-                        </label>
-                    )}
+      return (
+        <div className="min-h-screen bg-gray-50 p-4 md:p-8">
+          <div className="max-w-7xl mx-auto">
+            <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h1 className="text-3xl font-bold text-gray-900 mb-2">Shade Solutions QLD - Image Tracker</h1>
+                  <p className="text-gray-600">Connected to Firebase (auto-sync)</p>
                 </div>
+              </div>
 
-                <input type="text" placeholder="Filename *" className="border p-2 rounded w-full mb-2"
-                    value={newEntry.filename} onChange={(e)=>setNewEntry({...newEntry, filename: e.target.value})}/>
-                <input type="text" placeholder="Suggested Topic" className="border p-2 rounded w-full mb-2"
-                    value={newEntry.suggestedTopic} onChange={(e)=>setNewEntry({...newEntry, suggestedTopic: e.target.value})}/>
-
-                <button onClick={addImage} className="bg-blue-600 text-white px-4 py-2 rounded flex items-center gap-2">
-                    <Plus /> Add Image
-                </button>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-blue-50 rounded-lg p-4">
+                  <div className="text-2xl font-bold text-blue-900">{stats.total}</div>
+                  <div className="text-sm text-blue-700">Total</div>
+                </div>
+                <div className="bg-green-50 rounded-lg p-4">
+                  <div className="text-2xl font-bold text-green-900">{stats.completed}</div>
+                  <div className="text-sm text-green-700">Completed</div>
+                </div>
+                <div className="bg-yellow-50 rounded-lg p-4">
+                  <div className="text-2xl font-bold text-yellow-900">{stats.pending}</div>
+                  <div className="text-sm text-yellow-700">Pending</div>
+                </div>
+              </div>
             </div>
 
-            {/* Image List */}
-            {images.length === 0 && <p className="text-gray-500">No images yet.</p>}
-
-            {images.map(img => (
-                <div key={img.id} className={`bg-white p-4 rounded shadow mb-4 border-l-4 ${img.completed ? 'border-green-500' : 'border-yellow-500'}`}>
-                    <div className="flex justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                            <span>{img.completed ? <CheckCircle /> : <AlertCircle />}</span>
-                            <strong>{img.filename}</strong>
-                        </div>
-                        <button onClick={()=>deleteImage(img.id)} className="text-red-500">Delete</button>
-                    </div>
-
-                    {img.imagePreview && <img src={img.imagePreview} alt={img.filename} className="w-full h-auto rounded mb-2"/>}
-
-                    {img.approvalStatus === null && !img.completed && (
-                        <div className="mb-2">
-                            <p>Approve upload?</p>
-                            <div className="flex gap-2 mt-1">
-                                <button onClick={()=>handleApproval(img.id,true)} className="bg-green-600 text-white px-2 py-1 rounded flex items-center gap-1"><ThumbsUp /> Yes</button>
-                                <button onClick={()=>handleApproval(img.id,false)} className="bg-red-600 text-white px-2 py-1 rounded flex items-center gap-1"><ThumbsDown /> No</button>
-                            </div>
-                        </div>
-                    )}
-
-                    {img.approvalStatus && !img.completed && (
-                        <div className="grid grid-cols-1 gap-2 mb-2">
-                            <input type="text" placeholder="Product Name" value={img.productName} 
-                                onChange={e=>updateImage(img.id,'productName',e.target.value)}
-                                className="border p-1 rounded"/>
-                            <input type="text" placeholder="Supplier" value={img.supplier} 
-                                onChange={e=>updateImage(img.id,'supplier',e.target.value)}
-                                className="border p-1 rounded"/>
-                            <textarea placeholder="Reason for Install" value={img.reasonForInstall} 
-                                onChange={e=>updateImage(img.id,'reasonForInstall',e.target.value)}
-                                className="border p-1 rounded"/>
-                            <textarea placeholder="Additional Notes" value={img.additionalNotes} 
-                                onChange={e=>updateImage(img.id,'additionalNotes',e.target.value)}
-                                className="border p-1 rounded"/>
-                            <button onClick={()=>markAsCompleted(img.id)} className="bg-green-600 text-white px-2 py-1 rounded flex items-center gap-1">
-                                <CheckCircle /> Mark Complete
-                            </button>
-                        </div>
-                    )}
-
-                    {img.completed && (
-                        <div className="bg-green-50 p-2 rounded">
-                            <p>✔ Completed</p>
-                            {img.productName && <p>Product: {img.productName}</p>}
-                            {img.supplier && <p>Supplier: {img.supplier}</p>}
-                            {img.reasonForInstall && <p>Reason: {img.reasonForInstall}</p>}
-                            {img.additionalNotes && <p>Notes: {img.additionalNotes}</p>}
-                        </div>
-                    )}
+            <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">Upload Images</h2>
+              <label className="flex flex-col items-center justify-center w-full h-48 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                <p className="text-gray-500">Click to upload multiple images</p>
+                <input type="file" multiple accept="image/*" onChange={handleBulkUpload} disabled={uploading} className="hidden" />
+              </label>
+              {uploading && (
+                <div className="mt-4">
+                  <div className="text-sm text-gray-600 mb-1">Uploading... {uploadCount}</div>
+                  <div className="w-full bg-gray-200 h-2 rounded-full">
+                    <div className="bg-blue-600 h-2 rounded-full animate-pulse"></div>
+                  </div>
                 </div>
-            ))}
-        </div>
-    );
-}
+              )}
+            </div>
 
-const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(<LocalTracker />);
-</script>
+            <div className="space-y-4">
+              {sortedImages.map((img) => (
+                <div key={img.id} className={`bg-white rounded-lg shadow-sm p-6 border-l-4 ${img.completed ? "border-green-500" : "border-yellow-500"}`}>
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <h3 className="text-lg font-semibold">{img.filename}</h3>
+                      {img.sharepointDate && <p className="text-sm text-gray-500">{new Date(img.sharepointDate).toLocaleDateString()}</p>}
+                    </div>
+                    <button onClick={() => deleteImage(img.id)} className="text-red-500 hover:text-red-700">Delete</button>
+                  </div>
+
+                  {img.imageUrl && <img src={img.imageUrl} alt={img.filename} className="w-full rounded-lg mb-4" />}
+
+                  {img.approvalStatus === null && !img.completed && (
+                    <div className="mb-4 flex gap-3">
+                      <button onClick={() => handleApproval(img.id, true)} className="px-4 py-2 bg-green-600 text-white rounded">Approve</button>
+                      <button onClick={() => handleApproval(img.id, false)} className="px-4 py-2 bg-red-600 text-white rounded">Reject</button>
+                    </div>
+                  )}
+
+                  {img.approvalStatus === true && !img.completed && (
+                    <>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                        <input placeholder="Product name" value={img.productName} onChange={(e) => updateImage(img.id, "productName", e.target.value)} className="border rounded px-3 py-2" />
+                        <input placeholder="Supplier" value={img.supplier} onChange={(e) => updateImage(img.id, "supplier", e.target.value)} className="border rounded px-3 py-2" />
+                        <textarea placeholder="Reason for install" value={img.reasonForInstall} onChange={(e) => updateImage(img.id, "reasonForInstall", e.target.value)} className="border rounded px-3 py-2 col-span-2" />
+                        <textarea placeholder="Notes" value={img.additionalNotes} onChange={(e) => updateImage(img.id, "additionalNotes", e.target.value)} className="border rounded px-3 py-2 col-span-2" />
+                      </div>
+                      <button onClick={() => markAsCompleted(img.id)} className="px-4 py-2 bg-green-600 text-white rounded">Mark Complete</button>
+                    </>
+                  )}
+
+                  {img.completed && (
+                    <div className="bg-green-50 p-3 rounded mt-3">
+                      <p className="font-medium text-green-800">✓ Completed</p>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<ShadeTracker />);
+  </script>
 </body>
 </html>
