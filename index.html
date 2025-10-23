@@ -40,6 +40,10 @@ function ShadeTracker() {
   const [uploading, setUploading] = useState(false);
   const [uploadCount, setUploadCount] = useState(0);
 
+  // Upload form fields
+  const [folder, setFolder] = useState('');
+  const [sharepointDate, setSharepointDate] = useState('');
+
   // Load images from Firestore
   useEffect(() => {
     const unsubscribe = db.collection("images").orderBy("addedDate","desc")
@@ -75,14 +79,17 @@ function ShadeTracker() {
   const handleBulkUpload = async (e) => {
     const files = Array.from(e.target.files);
     if(!files.length) return;
+    if(!folder || !sharepointDate) {
+      alert("Please provide Folder / Location and SharePoint Date before uploading.");
+      return;
+    }
 
     setUploading(true);
     setUploadCount(0);
 
     for(let i=0;i<files.length;i++){
       const file = files[i];
-      const fileDate = file.lastModified ? new Date(file.lastModified) : new Date();
-      const formattedDate = fileDate.toISOString().split("T")[0];
+      const formattedDate = sharepointDate;
       try {
         const blob = await compressImage(file);
         const storageRef = storage.ref().child(`uploads/${Date.now()}-${file.name}`);
@@ -91,7 +98,7 @@ function ShadeTracker() {
 
         await db.collection("images").add({
           filename: file.name,
-          location: "",
+          location: folder,
           sharepointDate: formattedDate,
           imageUrl: url,
           productName: "",
@@ -110,6 +117,8 @@ function ShadeTracker() {
     setUploading(false);
     setUploadCount(0);
     e.target.value="";
+    setFolder('');
+    setSharepointDate('');
   };
 
   const updateField = async (id, field, value) => {
@@ -160,10 +169,23 @@ function ShadeTracker() {
       {/* Upload */}
       <div className="bg-white rounded-lg shadow p-6 mb-6">
         <h2 className="text-xl font-semibold mb-4">Add Images (Bulk Upload)</h2>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <label className="block text-gray-700 font-medium mb-1">Folder / Location</label>
+            <input type="text" value={folder} onChange={(e)=>setFolder(e.target.value)} className="border px-3 py-2 rounded w-full"/>
+          </div>
+          <div>
+            <label className="block text-gray-700 font-medium mb-1">SharePoint Date</label>
+            <input type="date" value={sharepointDate} onChange={(e)=>setSharepointDate(e.target.value)} className="border px-3 py-2 rounded w-full"/>
+          </div>
+        </div>
+
         <label className="flex flex-col items-center justify-center h-48 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
           <p className="text-gray-500 text-center mt-6">Click to select or drag & drop images</p>
           <input type="file" multiple accept="image/*" onChange={handleBulkUpload} className="hidden" disabled={uploading}/>
         </label>
+
         {uploading && (
           <div className="mt-4">
             <p className="text-gray-600 mb-1">Processing... {uploadCount}</p>
@@ -187,10 +209,16 @@ function ShadeTracker() {
 
             {img.imageUrl && <img src={img.imageUrl} alt={img.filename} className="w-full h-auto rounded-lg mb-4 object-contain"/>}
 
-            {/* Location & Date */}
+            {/* Folder & SharePoint Date display */}
             <div className="grid grid-cols-2 gap-4 mb-4">
-              <input placeholder="Folder / Location" value={img.location} onChange={(e)=>updateField(img.id,'location',e.target.value)} className="border px-3 py-2 rounded w-full"/>
-              <input type="date" value={img.sharepointDate} onChange={(e)=>updateField(img.id,'sharepointDate',e.target.value)} className="border px-3 py-2 rounded w-full"/>
+              <div>
+                <label className="block text-gray-700 font-medium mb-1">Folder / Location</label>
+                <input type="text" value={img.location} readOnly className="border px-3 py-2 rounded w-full bg-gray-100"/>
+              </div>
+              <div>
+                <label className="block text-gray-700 font-medium mb-1">SharePoint Date</label>
+                <input type="date" value={img.sharepointDate} readOnly className="border px-3 py-2 rounded w-full bg-gray-100"/>
+              </div>
             </div>
 
             {/* Approval */}
