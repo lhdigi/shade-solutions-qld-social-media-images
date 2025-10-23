@@ -80,7 +80,7 @@ function ShadeTracker() {
     const files = Array.from(e.target.files);
     if(!files.length) return;
     if(!folder || !sharepointDate) {
-      alert("Please provide Folder Name Where Image Was Found and SharePoint Date Uploaded before uploading.");
+      alert("Please provide SharePoint Folder Location and SharePoint Date Uploaded before uploading.");
       return;
     }
 
@@ -173,11 +173,11 @@ function ShadeTracker() {
 
       {/* Upload */}
       <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <h2 className="text-xl font-semibold mb-4">For Luke to Add Images Found</h2>
+        <h2 className="text-xl font-semibold mb-4">For Luke to Upload Images</h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div>
-            <label className="block text-gray-700 font-medium mb-1">Folder Name Where Image Was Found</label>
+            <label className="block text-gray-700 font-medium mb-1">SharePoint Folder Location</label>
             <input type="text" value={folder} onChange={(e)=>setFolder(e.target.value)} className="border px-3 py-2 rounded w-full"/>
           </div>
           <div>
@@ -217,7 +217,7 @@ function ShadeTracker() {
             {/* Folder & SharePoint Date Uploaded display */}
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
-                <label className="block text-gray-700 font-medium mb-1">Folder Name Where Image Was Found</label>
+                <label className="block text-gray-700 font-medium mb-1">SharePoint Folder Location</label>
                 <input type="text" value={img.location} readOnly className="border px-3 py-2 rounded w-full bg-gray-100"/>
               </div>
               <div>
