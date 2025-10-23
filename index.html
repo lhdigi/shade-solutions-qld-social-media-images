@@ -1,174 +1,211 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Shade Solutions QLD - Social Media Tracker</title>
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-    import { getStorage, ref, uploadBytesResumable, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-storage.js";
-    import { getFirestore, collection, addDoc, getDocs, updateDoc, doc } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Shade Solutions QLD - Image Tracker</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50">
+<div id="root"></div>
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyCjT-UjngKoElF2RH1BayCup7CzjIrABBc",
-      authDomain: "shade-solutions-tracker.firebaseapp.com",
-      projectId: "shade-solutions-tracker",
-      storageBucket: "shade-solutions-tracker.firebasestorage.app",
-      messagingSenderId: "347513530369",
-      appId: "1:347513530369:web:93abc25b52819139f2b800"
-    };
+<!-- React + Babel -->
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
-    const app = initializeApp(firebaseConfig);
-    const storage = getStorage(app);
-    const db = getFirestore(app);
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-storage-compat.js"></script>
 
-    let draggedFile = null;
+<script type="text/babel">
+const { useState, useEffect } = React;
 
-    async function uploadImage() {
-      const folderName = document.getElementById("folderName").value.trim();
-      const sharepointDate = document.getElementById("sharepointDate").value;
+// Firebase config
+const firebaseConfig = {
+  apiKey: "AIzaSyCjT-UjngKoElF2RH1BayCup7CzjIrABBc",
+  authDomain: "shade-solutions-tracker.firebaseapp.com",
+  projectId: "shade-solutions-tracker",
+  storageBucket: "shade-solutions-tracker.firebasestorage.app",
+  messagingSenderId: "347513530369",
+  appId: "1:347513530369:web:93abc25b52819139f2b800"
+};
 
-      const file = draggedFile || document.getElementById("imageInput").files[0];
-      if (!file) return alert("Please choose an image.");
+// Initialize Firebase
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const storage = firebase.storage();
 
-      if (!folderName || !sharepointDate) return alert("Please enter folder and date.");
+// Icons (same as your current design)
+const CheckCircle = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>;
+const AlertCircle = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>;
+const Trash2 = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>;
+const Upload = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>;
+const ThumbsUp = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path></svg>;
+const ThumbsDown = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"></path></svg>;
 
-      const storageRef = ref(storage, 'images/' + Date.now() + "-" + file.name);
-      const uploadTask = uploadBytesResumable(storageRef, file);
+function ShadeTracker() {
+  const [images, setImages] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState({}); // track upload progress per file
+  const [newFiles, setNewFiles] = useState([]);
 
-      const progressBar = document.getElementById("progressBar");
-      progressBar.style.width = "0%";
-      progressBar.parentElement.style.display = "block";
+  // Load from Firestore on mount
+  useEffect(() => {
+    const unsubscribe = db.collection("images").orderBy("addedDate", "desc")
+      .onSnapshot(snapshot => {
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setImages(data);
+      });
+    return () => unsubscribe();
+  }, []);
 
-      uploadTask.on('state_changed',
-        snapshot => {
-          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          progressBar.style.width = progress + "%";
-        },
-        error => console.error(error),
-        async () => {
-          const imageUrl = await getDownloadURL(uploadTask.snapshot.ref);
-          await addDoc(collection(db, "images"), {
-            name: file.name,
-            url: imageUrl,
-            folderName,
-            sharepointDate,
-            status: "pending",
-            productName: "",
-            supplier: "",
-            reasonForInstall: "",
-            additionalNotes: ""
+  const compressImage = (file) => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          const MAX = 1920;
+          let { width, height } = img;
+          if(width > height && width > MAX) { height *= MAX/width; width = MAX; }
+          else if(height > width && height > MAX) { width *= MAX/height; height = MAX; }
+          canvas.width = width;
+          canvas.height = height;
+          ctx.drawImage(img,0,0,width,height);
+          canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.85);
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleSelectFiles = (e) => {
+    setNewFiles(Array.from(e.target.files));
+  };
+
+  const uploadNewFiles = async () => {
+    if(newFiles.length === 0) return;
+    setUploading(true);
+    const progressCopy = {...progress};
+
+    for(let i=0;i<newFiles.length;i++){
+      const file = newFiles[i];
+      const compressedBlob = await compressImage(file);
+      const storageRef = storage.ref(`uploads/${Date.now()}-${file.name}`);
+      const uploadTask = storageRef.put(compressedBlob);
+
+      await new Promise((resolve, reject) => {
+        uploadTask.on('state_changed', snapshot => {
+          const percent = Math.round(snapshot.bytesTransferred / snapshot.totalBytes * 100);
+          progressCopy[file.name] = percent;
+          setProgress({...progressCopy});
+        }, reject, async () => {
+          const url = await uploadTask.snapshot.ref.getDownloadURL();
+          const folderName = prompt(`Folder name for ${file.name}:`) || '';
+          const sharepointDate = prompt(`SharePoint date for ${file.name} (YYYY-MM-DD):`) || '';
+
+          await db.collection("images").add({
+            filename: file.name,
+            location: folderName,
+            sharepointDate: sharepointDate,
+            imageUrl: url,
+            productName: '',
+            supplier: '',
+            reasonForInstall: '',
+            additionalNotes: '',
+            approvalStatus: null,
+            completed: false,
+            addedDate: new Date().toISOString()
           });
-
-          document.getElementById("imageInput").value = "";
-          document.getElementById("folderName").value = "";
-          document.getElementById("sharepointDate").value = "";
-          draggedFile = null;
-          progressBar.parentElement.style.display = "none";
-          loadImages();
-        }
-      );
-    }
-
-    async function loadImages() {
-      const container = document.getElementById("imageContainer");
-      container.innerHTML = "";
-
-      const querySnapshot = await getDocs(collection(db, "images"));
-      querySnapshot.forEach((docSnap) => {
-        const data = docSnap.data();
-        const card = document.createElement("div");
-        card.className = "card";
-
-        let statusColor = data.status === "approved" ? "green" :
-                          data.status === "rejected" ? "red" : "grey";
-
-        card.innerHTML = `
-          <img src="${data.url}" alt="${data.name}">
-          <p><strong>File:</strong> ${data.name}</p>
-          <p><strong>Folder:</strong> ${data.folderName || "-"}</p>
-          <p><strong>Date on SharePoint:</strong> ${data.sharepointDate || "-"}</p>
-          <div id="info-${docSnap.id}" class="info-fields" style="margin-top:10px;"></div>
-          <div class="buttons" id="buttons-${docSnap.id}">
-            ${
-              data.status === "pending"
-                ? `<button onclick="updateStatus('${docSnap.id}','approved')">Yes, post this</button>
-                   <button onclick="updateStatus('${docSnap.id}','rejected')">No, don’t post</button>`
-                : `<p class="status" style="color:${statusColor}; font-weight:bold; margin-top:5px;">
-                    ${data.status === "approved" ? "Approved" : "Rejected"}
-                  </p>`
-            }
-          </div>
-        `;
-        container.appendChild(card);
-
-        if(data.status === "approved") {
-          const infoDiv = document.getElementById(`info-${docSnap.id}`);
-          infoDiv.innerHTML = `
-            <input type="text" placeholder="Product Name" value="${data.productName}" oninput="updateField('${docSnap.id}','productName',this.value)" class="info-input">
-            <input type="text" placeholder="Supplier/Manufacturer" value="${data.supplier}" oninput="updateField('${docSnap.id}','supplier',this.value)" class="info-input">
-            <textarea placeholder="Reason for Install" oninput="updateField('${docSnap.id}','reasonForInstall',this.value)" class="info-input">${data.reasonForInstall}</textarea>
-            <textarea placeholder="Additional Notes" oninput="updateField('${docSnap.id}','additionalNotes',this.value)" class="info-input">${data.additionalNotes}</textarea>
-          `;
-        }
+          resolve();
+        });
       });
     }
 
-    window.updateStatus = async function(id, newStatus) {
-      await updateDoc(doc(db,"images",id), {status:newStatus});
-      loadImages();
-    }
+    setNewFiles([]);
+    setProgress({});
+    setUploading(false);
+  };
 
-    window.updateField = async function(id, field, value) {
-      await updateDoc(doc(db,"images",id), {[field]:value});
-    }
+  const handleApproval = async (id, approved) => {
+    await db.collection("images").doc(id).update({
+      approvalStatus: approved,
+      completed: !approved
+    });
+  };
 
-    window.uploadImage = uploadImage;
-    window.onload = loadImages;
+  const markAsCompleted = async (id) => {
+    await db.collection("images").doc(id).update({ completed: true });
+  };
 
-    function allowDrop(ev) {
-      ev.preventDefault();
-    }
+  const deleteImage = async (id) => {
+    if(!confirm("Delete this entry?")) return;
+    await db.collection("images").doc(id).delete();
+  };
 
-    function dropFile(ev) {
-      ev.preventDefault();
-      draggedFile = ev.dataTransfer.files[0];
-      document.getElementById("imageInput").files = ev.dataTransfer.files;
-    }
+  const updateImage = async (id, field, value) => {
+    await db.collection("images").doc(id).update({ [field]: value });
+  };
 
-  </script>
+  const sortedImages = [...images].sort((a,b) => (a.completed === b.completed ? 0 : a.completed ? 1 : -1));
 
-  <style>
-    body {font-family: Arial, sans-serif; background:#f9f9f9; margin:0; padding:20px;}
-    h1 {text-align:center; margin-bottom:20px;}
-    .upload-box {text-align:center; background:#fff; padding:20px; border-radius:10px; box-shadow:0 2px 5px rgba(0,0,0,0.1); margin-bottom:30px;}
-    input, button, textarea {margin:5px; padding:8px; font-size:14px;}
-    input, textarea {width:80%; display:block; margin:5px auto;}
-    button {cursor:pointer; background:#007bff; color:white; border:none; border-radius:5px;}
-    button:hover {background:#0056b3;}
-    .card {background:white; border-radius:10px; padding:15px; margin:10px auto; max-width:400px; box-shadow:0 2px 5px rgba(0,0,0,0.1); text-align:center;}
-    img {max-width:100%; border-radius:8px; margin-bottom:10px;}
-    .buttons button {margin:5px; padding:8px 12px;}
-    .status {font-weight:bold; margin-top:10px;}
-    .info-input {margin:5px 0; padding:6px; width:95%; display:block;}
-    #progressContainer {display:none; width:80%; height:10px; background:#ddd; margin:10px auto; border-radius:5px;}
-    #progressBar {height:10px; width:0%; background:#007bff; border-radius:5px;}
-  </style>
-</head>
-<body>
-  <h1>Shade Solutions QLD - Social Media Tracker</h1>
+  return (
+    <div className="min-h-screen bg-gray-50 p-4 md:p-8">
+      <div className="max-w-7xl mx-auto">
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+          <h1 className="text-3xl font-bold text-gray-900 mb-4">Shade Solutions QLD - Image Tracker</h1>
+          <div className="flex gap-2 items-center">
+            <label className="flex-1 cursor-pointer bg-gray-100 hover:bg-gray-200 px-4 py-3 rounded-lg text-center">
+              Select Images
+              <input type="file" multiple onChange={handleSelectFiles} className="hidden"/>
+            </label>
+            <button onClick={uploadNewFiles} disabled={uploading || newFiles.length===0} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">Upload</button>
+          </div>
+          {newFiles.map(f=>(
+            <div key={f.name} className="mt-2 text-sm text-gray-600">{f.name} {progress[f.name] && `- ${progress[f.name]}%`}</div>
+          ))}
+        </div>
 
-  <div class="upload-box" ondragover="allowDrop(event)" ondrop="dropFile(event)">
-    <p>Drag & drop an image here, or click to select</p>
-    <input type="file" id="imageInput" accept="image/*">
-    <input type="text" id="folderName" placeholder="SharePoint Folder Name">
-    <input type="date" id="sharepointDate">
-    <button onclick="uploadImage()">Upload</button>
-    <div id="progressContainer">
-      <div id="progressBar"></div>
+        <div className="space-y-4">
+          {sortedImages.map(img => (
+            <div key={img.id} className={`bg-white rounded-lg shadow-sm p-6 border-l-4 ${img.completed ? 'border-green-500':'border-yellow-500'}`}>
+              <div className="flex justify-between items-start mb-3">
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold">{img.filename}</h3>
+                  {img.location && <p className="text-sm text-gray-600">Folder: {img.location}</p>}
+                  {img.sharepointDate && <p className="text-sm text-gray-600">SharePoint: {img.sharepointDate}</p>}
+                </div>
+                <button onClick={()=>deleteImage(img.id)} className="text-red-500 hover:text-red-700"><Trash2/></button>
+              </div>
+              {img.imageUrl && <img src={img.imageUrl} alt={img.filename} className="w-full h-auto rounded-lg mb-3"/>}
+
+              {img.approvalStatus===null && !img.completed && (
+                <div className="flex gap-2">
+                  <button onClick={()=>handleApproval(img.id,true)} className="bg-green-600 text-white px-3 py-1 rounded-lg flex items-center gap-1"><ThumbsUp/>Yes</button>
+                  <button onClick={()=>handleApproval(img.id,false)} className="bg-red-600 text-white px-3 py-1 rounded-lg flex items-center gap-1"><ThumbsDown/>No</button>
+                </div>
+              )}
+
+              {img.approvalStatus===true && !img.completed && (
+                <button onClick={()=>markAsCompleted(img.id)} className="mt-2 bg-green-600 text-white px-4 py-2 rounded-lg flex items-center gap-2"><CheckCircle/>Mark Complete</button>
+              )}
+
+              {img.completed && <div className="mt-2 bg-green-50 p-3 rounded-lg text-green-900 font-medium">Completed</div>}
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
-  </div>
+  );
+}
 
-  <div id="imageContainer"></div>
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<ShadeTracker />);
+</script>
 </body>
 </html>
