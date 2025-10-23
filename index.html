@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Shade Solutions QLD - Image Tracker</title>
+<title>Shade Solutions QLD - Image for Socials</title>
 <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-50">
@@ -80,7 +80,7 @@ function ShadeTracker() {
     const files = Array.from(e.target.files);
     if(!files.length) return;
     if(!folder || !sharepointDate) {
-      alert("Please provide Folder / Location and SharePoint Date before uploading.");
+      alert("Please provide Folder Name Where Image Was Found and SharePoint Date Uploaded before uploading.");
       return;
     }
 
@@ -173,11 +173,11 @@ function ShadeTracker() {
 
       {/* Upload */}
       <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <h2 className="text-xl font-semibold mb-4">Add Images (Bulk Upload)</h2>
+        <h2 className="text-xl font-semibold mb-4">For Luke to Add Images Found</h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <div>
-            <label className="block text-gray-700 font-medium mb-1">Folder / Location</label>
+            <label className="block text-gray-700 font-medium mb-1">Folder Name Where Image Was Found</label>
             <input type="text" value={folder} onChange={(e)=>setFolder(e.target.value)} className="border px-3 py-2 rounded w-full"/>
           </div>
           <div>
@@ -214,10 +214,10 @@ function ShadeTracker() {
 
             {img.imageUrl && <img src={img.imageUrl} alt={img.filename} className="w-full h-auto rounded-lg mb-4 object-contain"/>}
 
-            {/* Folder & SharePoint Date display */}
+            {/* Folder & SharePoint Date Uploaded display */}
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
-                <label className="block text-gray-700 font-medium mb-1">Folder / Location</label>
+                <label className="block text-gray-700 font-medium mb-1">Folder Name Where Image Was Found</label>
                 <input type="text" value={img.location} readOnly className="border px-3 py-2 rounded w-full bg-gray-100"/>
               </div>
               <div>
