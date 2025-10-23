@@ -13,7 +13,6 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script> <!-- ✅ Added -->
 
     <!-- React -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -23,15 +22,15 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-     const firebaseConfig = {
-  apiKey: "AIzaSyBg6xrHudi1XQXeMgKWrorPDDirulijPX8",
-  authDomain: "shade-solutions-qld-imag-748bb.firebaseapp.com",
-  projectId: "shade-solutions-qld-imag-748bb",
-  storageBucket: "shade-solutions-qld-imag-748bb.appspot.com", // ← fixed
-  messagingSenderId: "801527719863",
-  appId: "1:801527719863:web:d3dde406d0e354fe7caa32"
-};
-
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBg6xrHudi1XQXeMgKWrorPDDirulijPX8",
+            authDomain: "shade-solutions-qld-imag-748bb.firebaseapp.com",
+            projectId: "shade-solutions-qld-imag-748bb",
+            storageBucket: "shade-solutions-qld-imag-748bb.appspot.com",
+            messagingSenderId: "801527719863",
+            appId: "1:801527719863:web:d3dde406d0e354fe7caa32"
+        };
 
         // Initialize Firebase
         let db, storage;
@@ -43,547 +42,130 @@
             console.error("Firebase initialization error:", error);
         }
 
-        // Icons
-        const Plus = () => (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <line x1="5" y1="12" x2="19" y2="12"></line>
-            </svg>
-        );
+        // --- Icon Components ---
+        const Plus = () => (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>);
+        const Trash2 = () => (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>);
+        const CheckCircle = () => (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>);
+        const AlertCircle = () => (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>);
+        const Upload = () => (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>);
+        const X = () => (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>);
+        const ThumbsUp = () => (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path></svg>);
+        const ThumbsDown = () => (<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"></path></svg>);
 
-        const Trash2 = () => (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="3 6 5 6 21 6"></polyline>
-                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                <line x1="10" y1="11" x2="10" y2="17"></line>
-                <line x1="14" y1="11" x2="14" y2="17"></line>
-            </svg>
-        );
-
-        const CheckCircle = () => (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                <polyline points="22 4 12 14.01 9 11.01"></polyline>
-            </svg>
-        );
-
-        const AlertCircle = () => (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="12" y1="8" x2="12" y2="12"></line>
-                <line x1="12" y1="16" x2="12.01" y2="16"></line>
-            </svg>
-        );
-
-        const Save = () => (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-                <polyline points="17 21 17 13 7 13 7 21"></polyline>
-                <polyline points="7 3 7 8 15 8"></polyline>
-            </svg>
-        );
-
-        const Upload = () => (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <polyline points="17 8 12 3 7 8"></polyline>
-                <line x1="12" y1="3" x2="12" y2="15"></line>
-            </svg>
-        );
-
-        const X = () => (
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-        );
-
-        const ThumbsUp = () => (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"></path>
-            </svg>
-        );
-
-        const ThumbsDown = () => (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"></path>
-            </svg>
-        );
-
+        // --- ShadeTracker Component ---
         function ShadeTracker() {
             const [images, setImages] = useState([]);
             const [loading, setLoading] = useState(true);
-            const [saving, setSaving] = useState(false);
             const [uploading, setUploading] = useState(false);
+            const [saving, setSaving] = useState(false);
             const [newEntry, setNewEntry] = useState({
-                filename: '',
-                location: '',
-                suggestedTopic: '',
-                sharepointDate: '',
-                imageFile: null,
-                imagePreview: null
+                filename: '', location: '', suggestedTopic: '', sharepointDate: '',
+                imageFile: null, imagePreview: null
             });
 
             useEffect(() => {
-                loadData();
-            }, []);
-
-            const loadData = () => {
-                if (!db) {
-                    setLoading(false);
-                    alert('Firebase not configured properly.');
-                    return;
-                }
-
-                // Real-time listener
-                const unsubscribe = db.collection('images')
-                    .orderBy('addedDate', 'desc')
-                    .onSnapshot((snapshot) => {
-                        const loadedImages = [];
-                        snapshot.forEach((doc) => {
-                            loadedImages.push({ id: doc.id, ...doc.data() });
-                        });
-                        setImages(loadedImages);
+                if (!db) { setLoading(false); return; }
+                const unsubscribe = db.collection('images').orderBy('addedDate', 'desc')
+                    .onSnapshot(snapshot => {
+                        const loaded = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                        setImages(loaded);
                         setLoading(false);
-                    }, (error) => {
-                        console.error('Error loading data:', error);
-                        setLoading(false);
-                    });
-
+                    }, err => { console.error(err); setLoading(false); });
                 return () => unsubscribe();
-            };
+            }, []);
 
             const handleImageUpload = (e) => {
                 const file = e.target.files[0];
-                if (file) {
-                    if (file.size > 10 * 1024 * 1024) {
-                        alert('Image size should be less than 10MB');
-                        return;
-                    }
-
-                    const fileDate = file.lastModified ? new Date(file.lastModified) : new Date();
-                    const formattedDate = fileDate.toISOString().split('T')[0];
-
-                    const reader = new FileReader();
-                    reader.onloadend = () => {
-                        setNewEntry({
-                            ...newEntry,
-                            imageFile: file,
-                            imagePreview: reader.result,
-                            filename: newEntry.filename || file.name,
-                            sharepointDate: newEntry.sharepointDate || formattedDate
-                        });
-                    };
-                    reader.readAsDataURL(file);
-                }
+                if (!file) return;
+                if (file.size > 10*1024*1024) { alert('Max 10MB'); return; }
+                const reader = new FileReader();
+                reader.onloadend = () => setNewEntry(prev => ({ ...prev, imageFile: file, imagePreview: reader.result, filename: prev.filename || file.name, sharepointDate: prev.sharepointDate || new Date(file.lastModified).toISOString().split('T')[0] }));
+                reader.readAsDataURL(file);
             };
 
-            const removeImage = () => {
-                setNewEntry({
-                    ...newEntry,
-                    imageFile: null,
-                    imagePreview: null
-                });
-            };
+            const removeImage = () => setNewEntry(prev => ({ ...prev, imageFile: null, imagePreview: null }));
 
             const addImage = async () => {
-                if (!newEntry.filename.trim()) {
-                    alert('Please enter a filename');
-                    return;
-                }
-
-                if (!newEntry.imageFile) {
-                    alert('Please upload an image');
-                    return;
-                }
-
+                if (!newEntry.filename.trim()) return alert('Filename required');
+                if (!newEntry.imageFile) return alert('Upload an image first');
                 setUploading(true);
-
                 try {
-                    // Upload image to Firebase Storage
                     const storageRef = storage.ref();
-                    const imageRef = storageRef.child(images/${Date.now()}_${newEntry.imageFile.name});
-                    const uploadTask = await imageRef.put(newEntry.imageFile);
-                    const imageUrl = await uploadTask.ref.getDownloadURL();
-
-                    // Save data to Firestore
+                    const imgRef = storageRef.child(`images/${Date.now()}_${newEntry.imageFile.name}`);
+                    const uploadTask = await imgRef.put(newEntry.imageFile);
+                    const url = await uploadTask.ref.getDownloadURL();
                     await db.collection('images').add({
-                        filename: newEntry.filename,
-                        location: newEntry.location,
-                        suggestedTopic: newEntry.suggestedTopic,
-                        sharepointDate: newEntry.sharepointDate,
-                        imageUrl: imageUrl,
-                        productName: '',
-                        supplier: '',
-                        reasonForInstall: '',
-                        additionalNotes: '',
-                        approvalStatus: null,
-                        completed: false,
-                        addedDate: firebase.firestore.FieldValue.serverTimestamp()
+                        ...newEntry, imageUrl: url, productName:'', supplier:'', reasonForInstall:'', additionalNotes:'', approvalStatus:null, completed:false, addedDate: firebase.firestore.FieldValue.serverTimestamp()
                     });
-
-                    setNewEntry({
-                        filename: '',
-                        location: '',
-                        suggestedTopic: '',
-                        sharepointDate: '',
-                        imageFile: null,
-                        imagePreview: null
-                    });
-                } catch (error) {
-                    console.error('Error adding image:', error);
-                    alert('Error adding image: ' + error.message);
-                } finally {
-                    setUploading(false);
-                }
+                    setNewEntry({ filename:'', location:'', suggestedTopic:'', sharepointDate:'', imageFile:null, imagePreview:null });
+                } catch(e){console.error(e); alert(e.message);} finally{setUploading(false);}
             };
 
-            const handleApproval = async (id, approved) => {
-                setSaving(true);
-                try {
-                    await db.collection('images').doc(id).update({
-                        approvalStatus: approved,
-                        completed: !approved
-                    });
-                } catch (error) {
-                    console.error('Error updating approval:', error);
-                    alert('Error updating. Please try again.');
-                } finally {
-                    setSaving(false);
-                }
-            };
+            const updateImage = async (id, field, value) => { try { await db.collection('images').doc(id).update({ [field]: value }); } catch(e){console.error(e);} };
+            const markAsCompleted = async (id) => { setSaving(true); try{await db.collection('images').doc(id).update({completed:true});}catch(e){console.error(e);}finally{setSaving(false);} };
+            const deleteImage = async (id) => { if(!confirm('Delete this entry?')) return; try{await db.collection('images').doc(id).delete();}catch(e){console.error(e); alert('Delete failed');} };
 
-            const updateImage = async (id, field, value) => {
-                try {
-                    await db.collection('images').doc(id).update({
-                        [field]: value
-                    });
-                } catch (error) {
-                    console.error('Error updating field:', error);
-                }
-            };
+            if (loading) return <div className="min-h-screen flex items-center justify-center">Loading tracker...</div>;
 
-            const markAsCompleted = async (id) => {
-                setSaving(true);
-                try {
-                    await db.collection('images').doc(id).update({
-                        completed: true
-                    });
-                } catch (error) {
-                    console.error('Error marking complete:', error);
-                    alert('Error updating. Please try again.');
-                } finally {
-                    setSaving(false);
-                }
-            };
-
-            const deleteImage = async (id) => {
-                if (!confirm('Are you sure you want to delete this entry?')) return;
-
-                try {
-                    await db.collection('images').doc(id).delete();
-                } catch (error) {
-                    console.error('Error deleting:', error);
-                    alert('Error deleting. Please try again.');
-                }
-            };
-
-            // Sort images: pending first, completed last
-            const sortedImages = [...images].sort((a, b) => {
-                if (a.completed === b.completed) return 0;
-                return a.completed ? 1 : -1;
-            });
-
-            const stats = {
-                total: images.length,
-                completed: images.filter(img => img.completed).length,
-                pending: images.filter(img => !img.completed).length
-            };
-
-            if (loading) {
-                return (
-                    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-                        <div className="text-gray-600">Loading tracker...</div>
-                    </div>
-                );
-            }
+            const sortedImages = [...images].sort((a,b)=>a.completed?1:-1);
+            const stats = { total: images.length, completed: images.filter(i=>i.completed).length, pending: images.filter(i=>!i.completed).length };
 
             return (
-                <div className="min-h-screen bg-gray-50 p-4 md:p-8">
-                    <div className="max-w-7xl mx-auto">
-                        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-                            <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                                Shade Solutions QLD - Image Details Tracker
-                            </h1>
-                            <p className="text-gray-600 mb-4">
-                                Share this link with Shade Solutions QLD to collaboratively fill in product details
-                            </p>
-                            
-                            <div className="grid grid-cols-3 gap-4">
-                                <div className="bg-blue-50 rounded-lg p-4">
-                                    <div className="text-2xl font-bold text-blue-900">{stats.total}</div>
-                                    <div className="text-sm text-blue-700">Total Images</div>
-                                </div>
-                                <div className="bg-green-50 rounded-lg p-4">
-                                    <div className="text-2xl font-bold text-green-900">{stats.completed}</div>
-                                    <div className="text-sm text-green-700">Completed</div>
-                                </div>
-                                <div className="bg-yellow-50 rounded-lg p-4">
-                                    <div className="text-2xl font-bold text-yellow-900">{stats.pending}</div>
-                                    <div className="text-sm text-yellow-700">Pending</div>
-                                </div>
-                            </div>
-                        </div>
+                <div className="min-h-screen p-4 md:p-8 bg-gray-50 max-w-7xl mx-auto">
+                    {/* Stats */}
+                    <div className="bg-white p-6 rounded-lg shadow-sm mb-6 grid grid-cols-3 gap-4">
+                        <div className="bg-blue-50 p-4 rounded-lg"><div className="text-2xl font-bold text-blue-900">{stats.total}</div><div className="text-sm text-blue-700">Total Images</div></div>
+                        <div className="bg-green-50 p-4 rounded-lg"><div className="text-2xl font-bold text-green-900">{stats.completed}</div><div className="text-sm text-green-700">Completed</div></div>
+                        <div className="bg-yellow-50 p-4 rounded-lg"><div className="text-2xl font-bold text-yellow-900">{stats.pending}</div><div className="text-sm text-yellow-700">Pending</div></div>
+                    </div>
 
-                        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-                            <h2 className="text-xl font-semibold text-gray-900 mb-4">Add New Image</h2>
-                            
-                            <div className="mb-4">
-                                {newEntry.imagePreview ? (
-                                    <div className="relative inline-block">
-                                        <img 
-                                            src={newEntry.imagePreview} 
-                                            alt="Preview" 
-                                            className="h-48 w-auto rounded-lg shadow-md"
-                                        />
-                                        <button
-                                            onClick={removeImage}
-                                            className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600"
-                                        >
-                                            <X />
-                                        </button>
-                                    </div>
-                                ) : (
-                                    <label className="flex flex-col items-center justify-center w-full h-48 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
-                                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                                            <Upload />
-                                            <p className="mb-2 text-sm text-gray-500 mt-2">
-                                                <span className="font-semibold">Click to upload image</span> or drag and drop
-                                            </p>
-                                            <p className="text-xs text-gray-500">PNG, JPG, GIF (MAX. 10MB)</p>
-                                        </div>
-                                        <input 
-                                            type="file" 
-                                            className="hidden" 
-                                            accept="image/*"
-                                            onChange={handleImageUpload}
-                                        />
-                                    </label>
-                                )}
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-                                <input
-                                    type="text"
-                                    placeholder="Filename *"
-                                    value={newEntry.filename}
-                                    onChange={(e) => setNewEntry({ ...newEntry, filename: e.target.value })}
-                                    className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                />
-                                <input
-                                    type="text"
-                                    placeholder="OneDrive Location/Path"
-                                    value={newEntry.location}
-                                    onChange={(e) => setNewEntry({ ...newEntry, location: e.target.value })}
-                                    className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                />
-                                <input
-                                    type="date"
-                                    placeholder="SharePoint Date"
-                                    value={newEntry.sharepointDate}
-                                    onChange={(e) => setNewEntry({ ...newEntry, sharepointDate: e.target.value })}
-                                    className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                />
-                                <input
-                                    type="text"
-                                    placeholder="Suggested Topic"
-                                    value={newEntry.suggestedTopic}
-                                    onChange={(e) => setNewEntry({ ...newEntry, suggestedTopic: e.target.value })}
-                                    className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                />
-                            </div>
-                            <button
-                                onClick={addImage}
-                                disabled={uploading}
-                                className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400"
-                            >
-                                <Plus />
-                                {uploading ? 'Uploading...' : 'Add Image'}
-                            </button>
-                        </div>
-
-                        <div className="space-y-4">
-                            {sortedImages.length === 0 ? (
-                                <div className="bg-white rounded-lg shadow-sm p-12 text-center">
-                                    <div className="inline-block mb-4 text-gray-400">
-                                        <AlertCircle />
-                                    </div>
-                                    <p className="text-gray-600">No images added yet. Add your first entry above!</p>
+                    {/* Add New Image */}
+                    <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+                        <h2 className="text-xl font-semibold mb-4">Add New Image</h2>
+                        <div className="mb-4">
+                            {newEntry.imagePreview ? (
+                                <div className="relative inline-block">
+                                    <img src={newEntry.imagePreview} className="h-48 w-auto rounded-lg shadow-md" alt="Preview"/>
+                                    <button onClick={removeImage} className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full"><X /></button>
                                 </div>
                             ) : (
-                                sortedImages.map((img) => (
-                                    <div
-                                        key={img.id}
-                                        className={bg-white rounded-lg shadow-sm p-6 border-l-4 ${
-                                            img.completed ? 'border-green-500' : 'border-yellow-500'
-                                        }}
-                                    >
-                                        <div className="flex items-start justify-between mb-4">
-                                            <div className="flex-1">
-                                                <div className="flex items-center gap-2 mb-2">
-                                                    <span className={img.completed ? 'text-green-500' : 'text-yellow-500'}>
-                                                        {img.completed ? <CheckCircle /> : <AlertCircle />}
-                                                    </span>
-                                                    <h3 className="text-lg font-semibold text-gray-900">{img.filename}</h3>
-                                                </div>
-                                                {img.location && (
-                                                    <p className="text-sm text-gray-600 mb-1">
-                                                        <span className="font-medium">Location:</span> {img.location}
-                                                    </p>
-                                                )}
-                                                {img.sharepointDate && (
-                                                    <p className="text-sm text-gray-600 mb-1">
-                                                        <span className="font-medium">SharePoint Date:</span> {new Date(img.sharepointDate).toLocaleDateString('en-AU', { year: 'numeric', month: 'long', day: 'numeric' })}
-                                                    </p>
-                                                )}
-                                                {img.suggestedTopic && (
-                                                    <p className="text-sm text-gray-600">
-                                                        <span className="font-medium">Suggested Topic:</span> {img.suggestedTopic}
-                                                    </p>
-                                                )}
-                                            </div>
-                                            <button
-                                                onClick={() => deleteImage(img.id)}
-                                                className="text-red-500 hover:text-red-700 p-2"
-                                                title="Delete entry"
-                                            >
-                                                <Trash2 />
-                                            </button>
-                                        </div>
-
-                                        {img.imageUrl && (
-                                            <div className="mb-4">
-                                                <img 
-                                                    src={img.imageUrl} 
-                                                    alt={img.filename}
-                                                    className="w-full h-auto object-contain rounded-lg shadow-md"
-                                                />
-                                            </div>
-                                        )}
-
-                                        {img.approvalStatus === null && !img.completed && (
-                                            <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                                                <p className="text-lg font-semibold text-gray-900 mb-3">
-                                                    Are you happy for me to upload this job?
-                                                </p>
-                                                <div className="flex gap-3">
-                                                    <button
-                                                        onClick={() => handleApproval(img.id, true)}
-                                                        className="flex items-center gap-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                                                    >
-                                                        <ThumbsUp />
-                                                        Yes, Continue
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleApproval(img.id, false)}
-                                                        className="flex items-center gap-2 px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                                                    >
-                                                        <ThumbsDown />
-                                                        No, Skip This
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {img.approvalStatus === true && !img.completed && (
-                                            <>
-                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                                                    <div>
-                                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                            Product Name / Description
-                                                        </label>
-                                                        <input
-                                                            type="text"
-                                                            value={img.productName}
-                                                            onChange={(e) => updateImage(img.id, 'productName', e.target.value)}
-                                                            placeholder="Enter product name/description"
-                                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                            Supplier / Manufacturer
-                                                        </label>
-                                                        <input
-                                                            type="text"
-                                                            value={img.supplier}
-                                                            onChange={(e) => updateImage(img.id, 'supplier', e.target.value)}
-                                                            placeholder="Enter supplier/manufacturer"
-                                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                                        />
-                                                    </div>
-                                                    <div className="md:col-span-2">
-                                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                            Reason For Install
-                                                        </label>
-                                                        <textarea
-                                                            value={img.reasonForInstall}
-                                                            onChange={(e) => updateImage(img.id, 'reasonForInstall', e.target.value)}
-                                                            placeholder="Enter reason for install"
-                                                            rows="2"
-                                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                                        />
-                                                    </div>
-                                                    <div className="md:col-span-2">
-                                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                            Additional Notes
-                                                        </label>
-                                                        <textarea
-                                                            value={img.additionalNotes}
-                                                            onChange={(e) => updateImage(img.id, 'additionalNotes', e.target.value)}
-                                                            placeholder="Enter any additional notes"
-                                                            rows="2"
-                                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                                        />
-                                                    </div>
-                                                </div>
-                                                <button
-                                                    onClick={() => markAsCompleted(img.id)}
-                                                    className="flex items-center gap-2 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                                                >
-                                                    <CheckCircle />
-                                                    All Information Added - Mark Complete
-                                                </button>
-                                            </>
-                                        )}
-
-                                        {img.completed && (
-                                            <div className="bg-green-50 p-4 rounded-lg">
-                                                {img.approvalStatus === false ? (
-                                                    <p className="text-green-900 font-medium">✓ Marked as not for upload</p>
-                                                ) : (
-                                                    <div className="space-y-2 text-sm">
-                                                        <p className="text-green-900 font-medium mb-3">✓ Completed</p>
-                                                        {img.productName && <p><span className="font-medium">Product:</span> {img.productName}</p>}
-                                                        {img.supplier && <p><span className="font-medium">Supplier:</span> {img.supplier}</p>}
-                                                        {img.reasonForInstall && <p><span className="font-medium">Reason:</span> {img.reasonForInstall}</p>}
-                                                        {img.additionalNotes && <p><span className="font-medium">Notes:</span> {img.additionalNotes}</p>}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                ))
+                                <label className="flex flex-col items-center justify-center w-full h-48 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                                    <Upload />
+                                    <p className="mt-2 text-sm text-gray-500 font-semibold">Click to upload or drag and drop</p>
+                                    <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload}/>
+                                </label>
                             )}
                         </div>
-
-                        {(saving || uploading) && (
-                            <div className="fixed bottom-4 right-4 bg-blue-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2">
-                                <span className="animate-pulse"><Save /></span>
-                                {uploading ? 'Uploading...' : 'Saving...'}
-                            </div>
-                        )}
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                            <input type="text" placeholder="Filename *" value={newEntry.filename} onChange={e=>setNewEntry({...newEntry, filename:e.target.value})} className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"/>
+                            <input type="text" placeholder="OneDrive Location/Path" value={newEntry.location} onChange={e=>setNewEntry({...newEntry, location:e.target.value})} className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"/>
+                            <input type="date" placeholder="SharePoint Date" value={newEntry.sharepointDate} onChange={e=>setNewEntry({...newEntry, sharepointDate:e.target.value})} className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"/>
+                            <input type="text" placeholder="Suggested Topic" value={newEntry.suggestedTopic} onChange={e=>setNewEntry({...newEntry, suggestedTopic:e.target.value})} className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"/>
+                        </div>
+                        <button onClick={addImage} disabled={uploading} className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">{uploading?'Uploading...':'Add Image'} <Plus /></button>
                     </div>
+
+                    {/* Images List */}
+                    <div className="space-y-4">
+                        {sortedImages.length===0 ? <div className="bg-white rounded-lg shadow-sm p-12 text-center text-gray-400">No images added yet.</div> :
+                            sortedImages.map(img => (
+                                <div key={img.id} className={`bg-white rounded-lg shadow-sm p-6 border-l-4 ${img.completed?'border-green-500':'border-yellow-500'}`}>
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div>
+                                            <div className="flex items-center gap-2 mb-2"><span>{img.completed?<CheckCircle />:<AlertCircle />}</span><h3 className="text-lg font-semibold">{img.filename}</h3></div>
+                                            {img.location && <p className="text-sm">Location: {img.location}</p>}
+                                            {img.sharepointDate && <p className="text-sm">SharePoint Date: {new Date(img.sharepointDate).toLocaleDateString('en-AU')}</p>}
+                                            {img.suggestedTopic && <p className="text-sm">Suggested Topic: {img.suggestedTopic}</p>}
+                                        </div>
+                                        <button onClick={()=>deleteImage(img.id)} className="text-red-500 hover:text-red-700 p-2"><Trash2 /></button>
+                                    </div>
+                                    {img.imageUrl && <img src={img.imageUrl} className="w-full h-auto rounded-lg shadow-md mb-4" alt={img.filename}/>}
+                                </div>
+                            ))
+                        }
+                    </div>
+
+                    {(saving || uploading) && <div className="fixed bottom-4 right-4 bg-blue-600 text-white px-6 py-3 rounded-lg shadow-lg">Saving/Uploading...</div>}
                 </div>
             );
         }
