@@ -47,6 +47,7 @@ function ShadeTracker() {
   const [folder, setFolder] = useState('');
   const [sharepointDate, setSharepointDate] = useState('');
   const [lukesNotes, setLukesNotes] = useState('');
+  const [selectedFiles, setSelectedFiles] = useState([]);
 
   // Auth listener
   useEffect(() => {
@@ -101,9 +102,12 @@ function ShadeTracker() {
     reader.readAsDataURL(file);
   });
 
-  const handleBulkUpload = async (e) => {
-    const files = Array.from(e.target.files);
-    if(!files.length) return;
+  const handleFilesSelected = (e) => {
+    setSelectedFiles(Array.from(e.target.files));
+  };
+
+  const handleBulkUpload = async () => {
+    if(!selectedFiles.length) return;
     if(!folder) {
       alert("Please provide Folder Location before uploading.");
       return;
@@ -112,8 +116,8 @@ function ShadeTracker() {
     setUploading(true);
     setUploadCount(0);
 
-    for(let i=0;i<files.length;i++){
-      const file = files[i];
+    for(let i=0;i<selectedFiles.length;i++){
+      const file = selectedFiles[i];
       const formattedDate = sharepointDate || null;
       try {
         const blob = await compressImage(file);
@@ -142,7 +146,7 @@ function ShadeTracker() {
 
     setUploading(false);
     setUploadCount(0);
-    e.target.value="";
+    setSelectedFiles([]);
     setFolder('');
     setSharepointDate('');
     setLukesNotes('');
@@ -238,9 +242,9 @@ function ShadeTracker() {
 
         <label className="flex flex-col items-center justify-center h-48 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 mb-2">
           <p className="text-gray-500 text-center mt-6">Click to select or drag & drop images</p>
-          <input type="file" multiple accept="image/*" onChange={handleBulkUpload} className="hidden" disabled={uploading}/>
+          <input type="file" multiple accept="image/*" onChange={handleFilesSelected} className="hidden" />
         </label>
-        <button onClick={()=>document.querySelector('input[type="file"]').click()} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Upload</button>
+        <button onClick={handleBulkUpload} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Upload</button>
 
         {uploading && (
           <div className="mt-4">
@@ -263,7 +267,8 @@ function ShadeTracker() {
               <button onClick={()=>deleteImage(img.id)} className="text-red-500 hover:text-red-700">Delete</button>
             </div>
 
-            {img.imageUrl && <img src={img.imageUrl} alt={img.filename} className="w-full h-auto rounded-lg mb-4 object-contain"/>}
+            {img.imageUrl && <img src={img.imageUrl} alt={img.filename} className="w-full h-auto rounded-lg mb-2 object-contain"/>}
+            {img.lukesNotes && <p className="mb-2 text-gray-700"><strong>Luke's Notes:</strong> {img.lukesNotes}</p>}
 
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
@@ -275,8 +280,6 @@ function ShadeTracker() {
                 <input type="date" value={img.sharepointDate || ''} readOnly className="border px-3 py-2 rounded w-full bg-gray-100"/>
               </div>
             </div>
-
-            {img.lukesNotes && <p className="mb-2 text-gray-700"><strong>Luke's Notes:</strong> {img.lukesNotes}</p>}
 
             {img.approvalStatus===null && !img.completed && (
               <div className="flex gap-3 mb-4">
