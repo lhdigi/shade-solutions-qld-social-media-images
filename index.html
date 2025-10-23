@@ -144,7 +144,12 @@ function ShadeTracker() {
     pending: images.filter(i=>!i.completed).length
   };
 
-  const sortedImages = [...images].sort((a,b)=>a.completed===b.completed?0:a.completed?1:-1);
+  // --- Sorting: newest first, completed go to bottom ---
+  const sortedImages = [...images].sort((a,b) => {
+    if(a.completed && !b.completed) return 1;
+    if(!a.completed && b.completed) return -1;
+    return new Date(b.addedDate) - new Date(a.addedDate);
+  });
 
   return (
     <div className="min-h-screen p-6 md:p-12 bg-gray-50 max-w-7xl mx-auto">
