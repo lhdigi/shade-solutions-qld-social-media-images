@@ -3,24 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Shade Solutions QLD - Image Tracker</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-gray-50">
-  <div id="root"></div>
-
-  <!-- React + Babel -->
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
-  <!-- Firebase SDKs -->
-  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-storage-compat.js"></script>
-
-  <script type="text/babel">
-    const { useState, useEffect } = React;
+  <title>Shade Solutions QLD - Social Media Tracker</title>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+    import { getStorage, ref, uploadBytesResumable, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-storage.js";
+    import { getFirestore, collection, addDoc, getDocs, updateDoc, doc } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyCjT-UjngKoElF2RH1BayCup7CzjIrABBc",
@@ -31,182 +18,157 @@
       appId: "1:347513530369:web:93abc25b52819139f2b800"
     };
 
-    const app = firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
-    const storage = firebase.storage();
+    const app = initializeApp(firebaseConfig);
+    const storage = getStorage(app);
+    const db = getFirestore(app);
 
-    function ShadeTracker() {
-      const [images, setImages] = useState([]);
-      const [file, setFile] = useState(null);
-      const [folder, setFolder] = useState("");
-      const [sharepointDate, setSharepointDate] = useState("");
-      const [uploading, setUploading] = useState(false);
-      const [progress, setProgress] = useState(0);
+    let draggedFile = null;
 
-      useEffect(() => {
-        const unsubscribe = db.collection("images").orderBy("addedDate", "desc").onSnapshot(snapshot => {
-          const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-          setImages(data);
-        });
-        return () => unsubscribe();
-      }, []);
+    async function uploadImage() {
+      const folderName = document.getElementById("folderName").value.trim();
+      const sharepointDate = document.getElementById("sharepointDate").value;
 
-      const compressImage = (file) => new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const img = new Image();
-          img.onload = () => {
-            const canvas = document.createElement("canvas");
-            const ctx = canvas.getContext("2d");
-            const MAX = 1920;
-            let { width, height } = img;
-            if (width > height && width > MAX) {
-              height *= MAX / width; width = MAX;
-            } else if (height > MAX) {
-              width *= MAX / height; height = MAX;
-            }
-            canvas.width = width; canvas.height = height;
-            ctx.drawImage(img, 0, 0, width, height);
-            canvas.toBlob(blob => resolve(blob), "image/jpeg", 0.85);
-          };
-          img.src = e.target.result;
-        };
-        reader.readAsDataURL(file);
-      });
+      const file = draggedFile || document.getElementById("imageInput").files[0];
+      if (!file) return alert("Please choose an image.");
 
-      const handleUpload = async () => {
-        if (!file) return alert("Please choose an image");
-        if (!folder || !sharepointDate) return alert("Please enter folder and date");
-        setUploading(true);
+      if (!folderName || !sharepointDate) return alert("Please enter folder and date.");
 
-        const compressed = await compressImage(file);
-        const ref = storage.ref().child(`uploads/${Date.now()}-${file.name}`);
-        const uploadTask = ref.put(compressed);
+      const storageRef = ref(storage, 'images/' + Date.now() + "-" + file.name);
+      const uploadTask = uploadBytesResumable(storageRef, file);
 
-        uploadTask.on("state_changed", 
-          snap => setProgress((snap.bytesTransferred / snap.totalBytes) * 100),
-          err => console.error(err),
-          async () => {
-            const url = await ref.getDownloadURL();
-            await db.collection("images").add({
-              filename: file.name,
-              folder,
-              sharepointDate,
-              imageUrl: url,
-              approvalStatus: null,
-              productName: "",
-              supplier: "",
-              reasonForInstall: "",
-              additionalNotes: "",
-              completed: false,
-              addedDate: new Date().toISOString()
-            });
-            setFile(null);
-            setFolder("");
-            setSharepointDate("");
-            setUploading(false);
-            setProgress(0);
-            alert("Upload complete");
-          }
-        );
-      };
+      const progressBar = document.getElementById("progressBar");
+      progressBar.style.width = "0%";
+      progressBar.parentElement.style.display = "block";
 
-      const updateField = (id, field, value) => {
-        db.collection("images").doc(id).update({ [field]: value });
-      };
+      uploadTask.on('state_changed',
+        snapshot => {
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          progressBar.style.width = progress + "%";
+        },
+        error => console.error(error),
+        async () => {
+          const imageUrl = await getDownloadURL(uploadTask.snapshot.ref);
+          await addDoc(collection(db, "images"), {
+            name: file.name,
+            url: imageUrl,
+            folderName,
+            sharepointDate,
+            status: "pending",
+            productName: "",
+            supplier: "",
+            reasonForInstall: "",
+            additionalNotes: ""
+          });
 
-      const handleApproval = (id, approved) => {
-        db.collection("images").doc(id).update({ approvalStatus: approved });
-      };
-
-      const markComplete = (id) => {
-        db.collection("images").doc(id).update({ completed: true });
-      };
-
-      const deleteImage = async (id) => {
-        if (confirm("Delete this entry?")) {
-          await db.collection("images").doc(id).delete();
+          document.getElementById("imageInput").value = "";
+          document.getElementById("folderName").value = "";
+          document.getElementById("sharepointDate").value = "";
+          draggedFile = null;
+          progressBar.parentElement.style.display = "none";
+          loadImages();
         }
-      };
-
-      return (
-        <div className="min-h-screen bg-gray-50 p-4 md:p-8">
-          <div className="max-w-7xl mx-auto space-y-8">
-            {/* Upload Card */}
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h2 className="text-2xl font-semibold mb-4">Upload New Image</h2>
-              <div className="grid md:grid-cols-3 gap-4 mb-4">
-                <input type="file" accept="image/*" onChange={(e) => setFile(e.target.files[0])} className="border rounded px-3 py-2" />
-                <input type="text" placeholder="Folder name" value={folder} onChange={(e) => setFolder(e.target.value)} className="border rounded px-3 py-2" />
-                <input type="date" value={sharepointDate} onChange={(e) => setSharepointDate(e.target.value)} className="border rounded px-3 py-2" />
-              </div>
-              <button onClick={handleUpload} disabled={uploading} className={`px-4 py-2 text-white rounded ${uploading ? "bg-gray-400" : "bg-blue-600 hover:bg-blue-700"}`}>
-                {uploading ? "Uploading..." : "Upload"}
-              </button>
-              {uploading && (
-                <div className="mt-4 w-full bg-gray-200 h-2 rounded-full">
-                  <div className="bg-blue-600 h-2 rounded-full" style={{ width: `${progress}%` }}></div>
-                </div>
-              )}
-            </div>
-
-            {/* Images */}
-            {images.map((img) => (
-              <div key={img.id} className={`bg-white rounded-lg shadow-sm p-6 border-l-4 ${img.completed ? "border-green-500" : img.approvalStatus === false ? "border-red-500" : "border-yellow-500"}`}>
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <h3 className="text-lg font-semibold">{img.filename}</h3>
-                    <p className="text-sm text-gray-500">
-                      Folder: {img.folder || "N/A"} | Uploaded: {img.sharepointDate || "N/A"}
-                    </p>
-                  </div>
-                  <button onClick={() => deleteImage(img.id)} className="text-red-500 hover:text-red-700">Delete</button>
-                </div>
-
-                {img.imageUrl && <img src={img.imageUrl} alt={img.filename} className="w-full rounded-lg mb-4" />}
-
-                {img.approvalStatus === null && !img.completed && (
-                  <div className="mb-4">
-                    <p className="font-medium mb-2">Are you happy to post this on social media?</p>
-                    <div className="flex gap-3">
-                      <button onClick={() => handleApproval(img.id, true)} className="px-4 py-2 bg-green-600 text-white rounded">Yes</button>
-                      <button onClick={() => handleApproval(img.id, false)} className="px-4 py-2 bg-red-600 text-white rounded">No</button>
-                    </div>
-                  </div>
-                )}
-
-                {img.approvalStatus === false && (
-                  <div className="bg-red-50 p-3 rounded mt-3">
-                    <p className="text-red-700 font-medium">✗ Rejected</p>
-                  </div>
-                )}
-
-                {img.approvalStatus === true && (
-                  <div className="mt-4 space-y-3">
-                    <input placeholder="Product name" value={img.productName} onChange={(e) => updateField(img.id, "productName", e.target.value)} className="border rounded px-3 py-2 w-full" />
-                    <input placeholder="Supplier / Manufacturer" value={img.supplier} onChange={(e) => updateField(img.id, "supplier", e.target.value)} className="border rounded px-3 py-2 w-full" />
-                    <textarea placeholder="Reason for install" value={img.reasonForInstall} onChange={(e) => updateField(img.id, "reasonForInstall", e.target.value)} className="border rounded px-3 py-2 w-full" />
-                    <textarea placeholder="Additional details" value={img.additionalNotes} onChange={(e) => updateField(img.id, "additionalNotes", e.target.value)} className="border rounded px-3 py-2 w-full" />
-                    {!img.completed && (
-                      <button onClick={() => markComplete(img.id)} className="px-4 py-2 bg-green-600 text-white rounded">Mark Complete</button>
-                    )}
-                  </div>
-                )}
-
-                {img.completed && (
-                  <div className="bg-green-50 p-3 rounded mt-3">
-                    <p className="text-green-700 font-medium">✓ Completed</p>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
       );
     }
 
-    const root = ReactDOM.createRoot(document.getElementById("root"));
-    root.render(<ShadeTracker />);
+    async function loadImages() {
+      const container = document.getElementById("imageContainer");
+      container.innerHTML = "";
+
+      const querySnapshot = await getDocs(collection(db, "images"));
+      querySnapshot.forEach((docSnap) => {
+        const data = docSnap.data();
+        const card = document.createElement("div");
+        card.className = "card";
+
+        let statusColor = data.status === "approved" ? "green" :
+                          data.status === "rejected" ? "red" : "grey";
+
+        card.innerHTML = `
+          <img src="${data.url}" alt="${data.name}">
+          <p><strong>File:</strong> ${data.name}</p>
+          <p><strong>Folder:</strong> ${data.folderName || "-"}</p>
+          <p><strong>Date on SharePoint:</strong> ${data.sharepointDate || "-"}</p>
+          <div id="info-${docSnap.id}" class="info-fields" style="margin-top:10px;"></div>
+          <div class="buttons" id="buttons-${docSnap.id}">
+            ${
+              data.status === "pending"
+                ? `<button onclick="updateStatus('${docSnap.id}','approved')">Yes, post this</button>
+                   <button onclick="updateStatus('${docSnap.id}','rejected')">No, don’t post</button>`
+                : `<p class="status" style="color:${statusColor}; font-weight:bold; margin-top:5px;">
+                    ${data.status === "approved" ? "Approved" : "Rejected"}
+                  </p>`
+            }
+          </div>
+        `;
+        container.appendChild(card);
+
+        if(data.status === "approved") {
+          const infoDiv = document.getElementById(`info-${docSnap.id}`);
+          infoDiv.innerHTML = `
+            <input type="text" placeholder="Product Name" value="${data.productName}" oninput="updateField('${docSnap.id}','productName',this.value)" class="info-input">
+            <input type="text" placeholder="Supplier/Manufacturer" value="${data.supplier}" oninput="updateField('${docSnap.id}','supplier',this.value)" class="info-input">
+            <textarea placeholder="Reason for Install" oninput="updateField('${docSnap.id}','reasonForInstall',this.value)" class="info-input">${data.reasonForInstall}</textarea>
+            <textarea placeholder="Additional Notes" oninput="updateField('${docSnap.id}','additionalNotes',this.value)" class="info-input">${data.additionalNotes}</textarea>
+          `;
+        }
+      });
+    }
+
+    window.updateStatus = async function(id, newStatus) {
+      await updateDoc(doc(db,"images",id), {status:newStatus});
+      loadImages();
+    }
+
+    window.updateField = async function(id, field, value) {
+      await updateDoc(doc(db,"images",id), {[field]:value});
+    }
+
+    window.uploadImage = uploadImage;
+    window.onload = loadImages;
+
+    function allowDrop(ev) {
+      ev.preventDefault();
+    }
+
+    function dropFile(ev) {
+      ev.preventDefault();
+      draggedFile = ev.dataTransfer.files[0];
+      document.getElementById("imageInput").files = ev.dataTransfer.files;
+    }
+
   </script>
+
+  <style>
+    body {font-family: Arial, sans-serif; background:#f9f9f9; margin:0; padding:20px;}
+    h1 {text-align:center; margin-bottom:20px;}
+    .upload-box {text-align:center; background:#fff; padding:20px; border-radius:10px; box-shadow:0 2px 5px rgba(0,0,0,0.1); margin-bottom:30px;}
+    input, button, textarea {margin:5px; padding:8px; font-size:14px;}
+    input, textarea {width:80%; display:block; margin:5px auto;}
+    button {cursor:pointer; background:#007bff; color:white; border:none; border-radius:5px;}
+    button:hover {background:#0056b3;}
+    .card {background:white; border-radius:10px; padding:15px; margin:10px auto; max-width:400px; box-shadow:0 2px 5px rgba(0,0,0,0.1); text-align:center;}
+    img {max-width:100%; border-radius:8px; margin-bottom:10px;}
+    .buttons button {margin:5px; padding:8px 12px;}
+    .status {font-weight:bold; margin-top:10px;}
+    .info-input {margin:5px 0; padding:6px; width:95%; display:block;}
+    #progressContainer {display:none; width:80%; height:10px; background:#ddd; margin:10px auto; border-radius:5px;}
+    #progressBar {height:10px; width:0%; background:#007bff; border-radius:5px;}
+  </style>
+</head>
+<body>
+  <h1>Shade Solutions QLD - Social Media Tracker</h1>
+
+  <div class="upload-box" ondragover="allowDrop(event)" ondrop="dropFile(event)">
+    <p>Drag & drop an image here, or click to select</p>
+    <input type="file" id="imageInput" accept="image/*">
+    <input type="text" id="folderName" placeholder="SharePoint Folder Name">
+    <input type="date" id="sharepointDate">
+    <button onclick="uploadImage()">Upload</button>
+    <div id="progressContainer">
+      <div id="progressBar"></div>
+    </div>
+  </div>
+
+  <div id="imageContainer"></div>
 </body>
 </html>
