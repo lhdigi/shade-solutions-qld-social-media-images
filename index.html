@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Shade Solutions QLD - Image for Socials</title>
+<title>Shade Solutions QLD - Image Tracker</title>
 <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-50">
@@ -15,6 +15,7 @@
 
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-storage-compat.js"></script>
 
@@ -23,40 +24,62 @@ const { useState, useEffect } = React;
 
 // --- Firebase setup ---
 const firebaseConfig = {
-  apiKey: "AIzaSyCjT-UjngKoElF2RH1BayCup7CzjIrABBc",
+  apiKey: "YOUR_API_KEY",
   authDomain: "shade-solutions-tracker.firebaseapp.com",
   projectId: "shade-solutions-tracker",
   storageBucket: "shade-solutions-tracker.firebasestorage.app",
-  messagingSenderId: "347513530369",
-  appId: "1:347513530369:web:93abc25b52819139f2b800"
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
 };
 const app = firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
 const db = firebase.firestore();
 const storage = firebase.storage();
 
 // --- Components ---
 function ShadeTracker() {
+  const [user, setUser] = useState(null);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [images, setImages] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [uploadCount, setUploadCount] = useState(0);
-  const [selectedFiles, setSelectedFiles] = useState([]);
-
-  // Upload form fields
   const [folder, setFolder] = useState('');
   const [sharepointDate, setSharepointDate] = useState('');
-  const [lukeNotes, setLukeNotes] = useState('');
+  const [lukesNotes, setLukesNotes] = useState('');
 
-  // Load images from Firestore
+  // Auth listener
   useEffect(() => {
-    const unsubscribe = db.collection("images").orderBy("addedDate","desc")
+    const unsubscribe = auth.onAuthStateChanged(u => setUser(u));
+    return () => unsubscribe();
+  }, []);
+
+  // Load images only if logged in
+  useEffect(() => {
+    if (!user) return;
+    const unsubscribe = db.collection("images")
+      .orderBy("addedDate", "desc")
       .onSnapshot(snapshot => {
         const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         setImages(data);
       });
     return () => unsubscribe();
-  }, []);
+  }, [user]);
 
-  // Compress image
+  // --- Auth functions ---
+  const handleLogin = async () => {
+    try {
+      await auth.signInWithEmailAndPassword(email, password);
+    } catch(e) {
+      alert("Login failed: " + e.message);
+    }
+  };
+
+  const handleLogout = async () => {
+    await auth.signOut();
+  };
+
+  // --- Image upload & compress ---
   const compressImage = (file) => new Promise(resolve => {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -78,23 +101,20 @@ function ShadeTracker() {
     reader.readAsDataURL(file);
   });
 
-  const handleFileSelect = (e) => {
-    setSelectedFiles(Array.from(e.target.files));
-  }
-
-  const handleBulkUpload = async () => {
-    if(!selectedFiles.length) return;
+  const handleBulkUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    if(!files.length) return;
     if(!folder) {
-      alert("Please provide SharePoint Folder Location before uploading.");
+      alert("Please provide Folder Location before uploading.");
       return;
     }
 
     setUploading(true);
     setUploadCount(0);
 
-    for(let i=0;i<selectedFiles.length;i++){
-      const file = selectedFiles[i];
-      const formattedDate = sharepointDate || '';
+    for(let i=0;i<files.length;i++){
+      const file = files[i];
+      const formattedDate = sharepointDate || null;
       try {
         const blob = await compressImage(file);
         const storageRef = storage.ref().child(`uploads/${Date.now()}-${file.name}`);
@@ -105,7 +125,7 @@ function ShadeTracker() {
           filename: file.name,
           location: folder,
           sharepointDate: formattedDate,
-          lukeNotes,
+          lukesNotes,
           imageUrl: url,
           productName: "",
           supplier: "",
@@ -122,10 +142,10 @@ function ShadeTracker() {
 
     setUploading(false);
     setUploadCount(0);
-    setSelectedFiles([]);
+    e.target.value="";
     setFolder('');
     setSharepointDate('');
-    setLukeNotes('');
+    setLukesNotes('');
   };
 
   const updateField = async (id, field, value) => {
@@ -142,7 +162,7 @@ function ShadeTracker() {
 
   const undoAction = async (id) => {
     await db.collection("images").doc(id).update({ approvalStatus: null, completed: false });
-  }
+  };
 
   const deleteImage = async (id) => {
     if(!confirm("Delete this image?")) return;
@@ -155,16 +175,31 @@ function ShadeTracker() {
     pending: images.filter(i=>!i.completed).length
   };
 
-  // --- Sorting: newest first, completed go to bottom ---
   const sortedImages = [...images].sort((a,b) => {
     if(a.completed && !b.completed) return 1;
     if(!a.completed && b.completed) return -1;
     return new Date(b.addedDate) - new Date(a.addedDate);
   });
 
+  if(!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="bg-white p-8 rounded-lg shadow w-full max-w-md">
+          <h1 className="text-2xl font-bold mb-4">Login to Access Tracker</h1>
+          <input type="email" placeholder="Email" value={email} onChange={e=>setEmail(e.target.value)} className="border px-3 py-2 rounded w-full mb-2"/>
+          <input type="password" placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)} className="border px-3 py-2 rounded w-full mb-4"/>
+          <button onClick={handleLogin} className="w-full bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Login</button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen p-6 md:p-12 bg-gray-50 max-w-7xl mx-auto">
-      <h1 className="text-3xl font-bold text-center mb-6">Shade Solutions QLD - Image Tracker</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-3xl font-bold">Shade Solutions QLD - Image Tracker</h1>
+        <button onClick={handleLogout} className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">Logout</button>
+      </div>
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4 mb-6">
@@ -186,7 +221,7 @@ function ShadeTracker() {
       <div className="bg-white rounded-lg shadow p-6 mb-6">
         <h2 className="text-xl font-semibold mb-4">For Luke to Upload Images</h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
           <div>
             <label className="block text-gray-700 font-medium mb-1">SharePoint Folder Location</label>
             <input type="text" value={folder} onChange={(e)=>setFolder(e.target.value)} className="border px-3 py-2 rounded w-full"/>
@@ -195,17 +230,17 @@ function ShadeTracker() {
             <label className="block text-gray-700 font-medium mb-1">SharePoint Date (Optional)</label>
             <input type="date" value={sharepointDate} onChange={(e)=>setSharepointDate(e.target.value)} className="border px-3 py-2 rounded w-full"/>
           </div>
+          <div>
+            <label className="block text-gray-700 font-medium mb-1">Luke's Notes (Optional)</label>
+            <input type="text" value={lukesNotes} onChange={(e)=>setLukesNotes(e.target.value)} className="border px-3 py-2 rounded w-full"/>
+          </div>
         </div>
 
-        <div className="mb-4">
-          <label className="block text-gray-700 font-medium mb-1">Luke's Notes</label>
-          <textarea value={lukeNotes} onChange={e=>setLukeNotes(e.target.value)} className="border px-3 py-2 rounded w-full"/>
-        </div>
-
-        <input type="file" multiple accept="image/*" onChange={handleFileSelect} className="mb-2"/>
-        <button onClick={handleBulkUpload} disabled={uploading || !selectedFiles.length} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-          Upload Selected
-        </button>
+        <label className="flex flex-col items-center justify-center h-48 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 mb-2">
+          <p className="text-gray-500 text-center mt-6">Click to select or drag & drop images</p>
+          <input type="file" multiple accept="image/*" onChange={handleBulkUpload} className="hidden" disabled={uploading}/>
+        </label>
+        <button onClick={()=>document.querySelector('input[type="file"]').click()} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Upload</button>
 
         {uploading && (
           <div className="mt-4">
@@ -225,41 +260,31 @@ function ShadeTracker() {
           <div key={img.id} className={`bg-white rounded-lg shadow p-6 border-l-4 ${img.completed?'border-green-500':'border-yellow-500'}`}>
             <div className="flex justify-between items-start mb-4">
               <h3 className="text-lg font-semibold">{img.filename}</h3>
-              <div className="flex gap-2">
-                {img.approvalStatus!==null || img.completed ? (
-                  <button onClick={()=>undoAction(img.id)} className="text-orange-500 hover:text-orange-700">Undo</button>
-                ) : null}
-                <button onClick={()=>deleteImage(img.id)} className="text-red-500 hover:text-red-700">Delete</button>
-              </div>
+              <button onClick={()=>deleteImage(img.id)} className="text-red-500 hover:text-red-700">Delete</button>
             </div>
 
             {img.imageUrl && <img src={img.imageUrl} alt={img.filename} className="w-full h-auto rounded-lg mb-4 object-contain"/>}
 
-            {/* Folder, Date, and Luke's Notes */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
                 <label className="block text-gray-700 font-medium mb-1">SharePoint Folder Location</label>
                 <input type="text" value={img.location} readOnly className="border px-3 py-2 rounded w-full bg-gray-100"/>
               </div>
               <div>
                 <label className="block text-gray-700 font-medium mb-1">SharePoint Date</label>
-                <input type="date" value={img.sharepointDate} readOnly className="border px-3 py-2 rounded w-full bg-gray-100"/>
-              </div>
-              <div>
-                <label className="block text-gray-700 font-medium mb-1">Luke's Notes</label>
-                <textarea value={img.lukeNotes || ''} readOnly className="border px-3 py-2 rounded w-full bg-gray-100"/>
+                <input type="date" value={img.sharepointDate || ''} readOnly className="border px-3 py-2 rounded w-full bg-gray-100"/>
               </div>
             </div>
 
-            {/* Approval */}
+            {img.lukesNotes && <p className="mb-2 text-gray-700"><strong>Luke's Notes:</strong> {img.lukesNotes}</p>}
+
             {img.approvalStatus===null && !img.completed && (
               <div className="flex gap-3 mb-4">
                 <button onClick={()=>handleApproval(img.id,true)} className="flex-1 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">Yes, post on socials</button>
-                <button onClick={()=>handleApproval(img.id,false)} className="flex-1 px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">No, do not post</button>
+                <button onClick={()=>handleApproval(img.id,false)} className="flex-1 px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">No, Do not post</button>
               </div>
             )}
 
-            {/* Info fields */}
             {img.approvalStatus===true && !img.completed && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <input placeholder="Product Name / Description" value={img.productName} onChange={(e)=>updateField(img.id,'productName',e.target.value)} className="border px-3 py-2 rounded w-full"/>
@@ -270,9 +295,14 @@ function ShadeTracker() {
               </div>
             )}
 
-            {/* Completed / Rejected */}
+            {(img.completed || img.approvalStatus===false) && (
+              <div className="mt-2">
+                <button onClick={()=>undoAction(img.id)} className="px-4 py-1 text-sm bg-yellow-500 text-white rounded hover:bg-yellow-600">Undo</button>
+              </div>
+            )}
+
             {img.completed && (
-              <div className={`p-4 rounded ${img.approvalStatus===false?'bg-red-100':'bg-green-50'}`}>
+              <div className={`p-4 rounded mt-2 ${img.approvalStatus===false?'bg-red-100':'bg-green-50'}`}>
                 {img.approvalStatus===false ? (
                   <p className="text-red-700 font-semibold">❌ Not for Social Media</p>
                 ) : (
