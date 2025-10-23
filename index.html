@@ -226,6 +226,10 @@ function ShadeTracker() {
         <h2 className="text-xl font-semibold mb-4">For Luke to Upload Images</h2>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          <div className="md:col-span-3">
+            <label className="block text-gray-700 font-medium mb-1">Luke's Notes (Optional)</label>
+            <input type="text" value={lukesNotes} onChange={(e)=>setLukesNotes(e.target.value)} className="border px-3 py-2 rounded w-full"/>
+          </div>
           <div>
             <label className="block text-gray-700 font-medium mb-1">SharePoint Folder Location</label>
             <input type="text" value={folder} onChange={(e)=>setFolder(e.target.value)} className="border px-3 py-2 rounded w-full"/>
@@ -233,10 +237,6 @@ function ShadeTracker() {
           <div>
             <label className="block text-gray-700 font-medium mb-1">SharePoint Date (Optional)</label>
             <input type="date" value={sharepointDate} onChange={(e)=>setSharepointDate(e.target.value)} className="border px-3 py-2 rounded w-full"/>
-          </div>
-          <div>
-            <label className="block text-gray-700 font-medium mb-1">Luke's Notes (Optional)</label>
-            <input type="text" value={lukesNotes} onChange={(e)=>setLukesNotes(e.target.value)} className="border px-3 py-2 rounded w-full"/>
           </div>
         </div>
 
@@ -274,6 +274,12 @@ function ShadeTracker() {
 
             {img.imageUrl && <img src={img.imageUrl} alt={img.filename} className="w-full h-auto rounded-lg mb-2 object-contain"/>}
 
+            {/* Luke's Notes below the image */}
+            <div className="mb-2">
+              <label className="block text-gray-700 font-medium mb-1">Luke's Notes</label>
+              <input type="text" value={img.lukesNotes || ''} onChange={(e)=>updateField(img.id,'lukesNotes',e.target.value)} className="border px-3 py-2 rounded w-full"/>
+            </div>
+
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
                 <label className="block text-gray-700 font-medium mb-1">SharePoint Folder Location</label>
@@ -285,12 +291,6 @@ function ShadeTracker() {
               </div>
             </div>
 
-            {/* Luke's Notes editable */}
-            <div className="mb-2">
-              <label className="block text-gray-700 font-medium mb-1">Luke's Notes</label>
-              <input type="text" value={img.lukesNotes || ''} onChange={(e)=>updateField(img.id,'lukesNotes',e.target.value)} className="border px-3 py-2 rounded w-full"/>
-            </div>
-
             {img.approvalStatus===null && !img.completed && (
               <div className="flex gap-3 mb-4">
                 <button onClick={()=>handleApproval(img.id,true)} className="flex-1 px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">Yes, post on socials</button>
@@ -300,10 +300,22 @@ function ShadeTracker() {
 
             {img.approvalStatus===true && !img.completed && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <input placeholder="Product Name / Description" value={img.productName} onChange={(e)=>updateField(img.id,'productName',e.target.value)} className="border px-3 py-2 rounded w-full"/>
-                <input placeholder="Supplier / Manufacturer" value={img.supplier} onChange={(e)=>updateField(img.id,'supplier',e.target.value)} className="border px-3 py-2 rounded w-full"/>
-                <textarea placeholder="Reason for Install" value={img.reasonForInstall} onChange={(e)=>updateField(img.id,'reasonForInstall',e.target.value)} className="border px-3 py-2 rounded md:col-span-2"/>
-                <textarea placeholder="Additional Notes" value={img.additionalNotes} onChange={(e)=>updateField(img.id,'additionalNotes',e.target.value)} className="border px-3 py-2 rounded md:col-span-2"/>
+                <div>
+                  <label className="block text-gray-700 font-medium mb-1">Product Name / Description</label>
+                  <input placeholder="Product Name / Description" value={img.productName} onChange={(e)=>updateField(img.id,'productName',e.target.value)} className="border px-3 py-2 rounded w-full"/>
+                </div>
+                <div>
+                  <label className="block text-gray-700 font-medium mb-1">Supplier / Manufacturer</label>
+                  <input placeholder="Supplier / Manufacturer" value={img.supplier} onChange={(e)=>updateField(img.id,'supplier',e.target.value)} className="border px-3 py-2 rounded w-full"/>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-gray-700 font-medium mb-1">Reason for Install</label>
+                  <textarea placeholder="Reason for Install" value={img.reasonForInstall} onChange={(e)=>updateField(img.id,'reasonForInstall',e.target.value)} className="border px-3 py-2 rounded w-full"/>
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-gray-700 font-medium mb-1">Additional Notes</label>
+                  <textarea placeholder="Additional Notes" value={img.additionalNotes} onChange={(e)=>updateField(img.id,'additionalNotes',e.target.value)} className="border px-3 py-2 rounded w-full"/>
+                </div>
                 <button onClick={()=>markCompleted(img.id)} className="px-6 py-2 bg-green-600 text-white rounded-lg col-span-full">All Information Added - Mark Complete</button>
               </div>
             )}
