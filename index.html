@@ -23,15 +23,15 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        // Firebase Configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyBg6xrHudi1XQXeMgKWrorPDDirulijPX8",
-            authDomain: "shade-solutions-qld-imag-748bb.firebaseapp.com",
-            projectId: "shade-solutions-qld-imag-748bb",
-            storageBucket: "shade-solutions-qld-imag-748bb,
-            messagingSenderId: "801527719863",
-            appId: "1:801527719863:web:d3dde406d0e354fe7caa32"
-        };
+     const firebaseConfig = {
+  apiKey: "AIzaSyBg6xrHudi1XQXeMgKWrorPDDirulijPX8",
+  authDomain: "shade-solutions-qld-imag-748bb.firebaseapp.com",
+  projectId: "shade-solutions-qld-imag-748bb",
+  storageBucket: "shade-solutions-qld-imag-748bb.appspot.com", // ← fixed
+  messagingSenderId: "801527719863",
+  appId: "1:801527719863:web:d3dde406d0e354fe7caa32"
+};
+
 
         // Initialize Firebase
         let db, storage;
