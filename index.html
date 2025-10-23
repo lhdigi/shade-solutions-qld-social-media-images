@@ -244,6 +244,11 @@ function ShadeTracker() {
           <p className="text-gray-500 text-center mt-6">Click to select or drag & drop images</p>
           <input type="file" multiple accept="image/*" onChange={handleFilesSelected} className="hidden" />
         </label>
+        {selectedFiles.length > 0 && (
+          <div className="mb-2 text-gray-700">
+            Selected files: {selectedFiles.map(f => f.name).join(", ")}
+          </div>
+        )}
         <button onClick={handleBulkUpload} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Upload</button>
 
         {uploading && (
@@ -268,7 +273,6 @@ function ShadeTracker() {
             </div>
 
             {img.imageUrl && <img src={img.imageUrl} alt={img.filename} className="w-full h-auto rounded-lg mb-2 object-contain"/>}
-            {img.lukesNotes && <p className="mb-2 text-gray-700"><strong>Luke's Notes:</strong> {img.lukesNotes}</p>}
 
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
@@ -279,6 +283,12 @@ function ShadeTracker() {
                 <label className="block text-gray-700 font-medium mb-1">SharePoint Date</label>
                 <input type="date" value={img.sharepointDate || ''} readOnly className="border px-3 py-2 rounded w-full bg-gray-100"/>
               </div>
+            </div>
+
+            {/* Luke's Notes editable */}
+            <div className="mb-2">
+              <label className="block text-gray-700 font-medium mb-1">Luke's Notes</label>
+              <input type="text" value={img.lukesNotes || ''} onChange={(e)=>updateField(img.id,'lukesNotes',e.target.value)} className="border px-3 py-2 rounded w-full"/>
             </div>
 
             {img.approvalStatus===null && !img.completed && (
