@@ -39,10 +39,12 @@ function ShadeTracker() {
   const [images, setImages] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [uploadCount, setUploadCount] = useState(0);
+  const [selectedFiles, setSelectedFiles] = useState([]);
 
   // Upload form fields
   const [folder, setFolder] = useState('');
   const [sharepointDate, setSharepointDate] = useState('');
+  const [lukeNotes, setLukeNotes] = useState('');
 
   // Load images from Firestore
   useEffect(() => {
@@ -76,20 +78,23 @@ function ShadeTracker() {
     reader.readAsDataURL(file);
   });
 
-  const handleBulkUpload = async (e) => {
-    const files = Array.from(e.target.files);
-    if(!files.length) return;
-    if(!folder || !sharepointDate) {
-      alert("Please provide SharePoint Folder Location and SharePoint Date Uploaded before uploading.");
+  const handleFileSelect = (e) => {
+    setSelectedFiles(Array.from(e.target.files));
+  }
+
+  const handleBulkUpload = async () => {
+    if(!selectedFiles.length) return;
+    if(!folder) {
+      alert("Please provide SharePoint Folder Location before uploading.");
       return;
     }
 
     setUploading(true);
     setUploadCount(0);
 
-    for(let i=0;i<files.length;i++){
-      const file = files[i];
-      const formattedDate = sharepointDate;
+    for(let i=0;i<selectedFiles.length;i++){
+      const file = selectedFiles[i];
+      const formattedDate = sharepointDate || '';
       try {
         const blob = await compressImage(file);
         const storageRef = storage.ref().child(`uploads/${Date.now()}-${file.name}`);
@@ -100,6 +105,7 @@ function ShadeTracker() {
           filename: file.name,
           location: folder,
           sharepointDate: formattedDate,
+          lukeNotes,
           imageUrl: url,
           productName: "",
           supplier: "",
@@ -116,9 +122,10 @@ function ShadeTracker() {
 
     setUploading(false);
     setUploadCount(0);
-    e.target.value="";
+    setSelectedFiles([]);
     setFolder('');
     setSharepointDate('');
+    setLukeNotes('');
   };
 
   const updateField = async (id, field, value) => {
@@ -132,6 +139,10 @@ function ShadeTracker() {
   const markCompleted = async (id) => {
     await db.collection("images").doc(id).update({ completed: true });
   };
+
+  const undoAction = async (id) => {
+    await db.collection("images").doc(id).update({ approvalStatus: null, completed: false });
+  }
 
   const deleteImage = async (id) => {
     if(!confirm("Delete this image?")) return;
@@ -181,15 +192,20 @@ function ShadeTracker() {
             <input type="text" value={folder} onChange={(e)=>setFolder(e.target.value)} className="border px-3 py-2 rounded w-full"/>
           </div>
           <div>
-            <label className="block text-gray-700 font-medium mb-1">SharePoint Date</label>
+            <label className="block text-gray-700 font-medium mb-1">SharePoint Date (Optional)</label>
             <input type="date" value={sharepointDate} onChange={(e)=>setSharepointDate(e.target.value)} className="border px-3 py-2 rounded w-full"/>
           </div>
         </div>
 
-        <label className="flex flex-col items-center justify-center h-48 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
-          <p className="text-gray-500 text-center mt-6">Click to select or drag & drop images</p>
-          <input type="file" multiple accept="image/*" onChange={handleBulkUpload} className="hidden" disabled={uploading}/>
-        </label>
+        <div className="mb-4">
+          <label className="block text-gray-700 font-medium mb-1">Luke's Notes</label>
+          <textarea value={lukeNotes} onChange={e=>setLukeNotes(e.target.value)} className="border px-3 py-2 rounded w-full"/>
+        </div>
+
+        <input type="file" multiple accept="image/*" onChange={handleFileSelect} className="mb-2"/>
+        <button onClick={handleBulkUpload} disabled={uploading || !selectedFiles.length} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+          Upload Selected
+        </button>
 
         {uploading && (
           <div className="mt-4">
@@ -209,13 +225,18 @@ function ShadeTracker() {
           <div key={img.id} className={`bg-white rounded-lg shadow p-6 border-l-4 ${img.completed?'border-green-500':'border-yellow-500'}`}>
             <div className="flex justify-between items-start mb-4">
               <h3 className="text-lg font-semibold">{img.filename}</h3>
-              <button onClick={()=>deleteImage(img.id)} className="text-red-500 hover:text-red-700">Delete</button>
+              <div className="flex gap-2">
+                {img.approvalStatus!==null || img.completed ? (
+                  <button onClick={()=>undoAction(img.id)} className="text-orange-500 hover:text-orange-700">Undo</button>
+                ) : null}
+                <button onClick={()=>deleteImage(img.id)} className="text-red-500 hover:text-red-700">Delete</button>
+              </div>
             </div>
 
             {img.imageUrl && <img src={img.imageUrl} alt={img.filename} className="w-full h-auto rounded-lg mb-4 object-contain"/>}
 
-            {/* Folder & SharePoint Date Uploaded display */}
-            <div className="grid grid-cols-2 gap-4 mb-4">
+            {/* Folder, Date, and Luke's Notes */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <div>
                 <label className="block text-gray-700 font-medium mb-1">SharePoint Folder Location</label>
                 <input type="text" value={img.location} readOnly className="border px-3 py-2 rounded w-full bg-gray-100"/>
@@ -223,6 +244,10 @@ function ShadeTracker() {
               <div>
                 <label className="block text-gray-700 font-medium mb-1">SharePoint Date</label>
                 <input type="date" value={img.sharepointDate} readOnly className="border px-3 py-2 rounded w-full bg-gray-100"/>
+              </div>
+              <div>
+                <label className="block text-gray-700 font-medium mb-1">Luke's Notes</label>
+                <textarea value={img.lukeNotes || ''} readOnly className="border px-3 py-2 rounded w-full bg-gray-100"/>
               </div>
             </div>
 
