@@ -9,6 +9,12 @@
 <body class="bg-gray-50">
     <div id="root"></div>
 
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+
+    <!-- React -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -16,7 +22,27 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        // Icons as SVG components
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBg6xrHudi1XQXeMgKWrorPDDirulijPX8",
+            authDomain: "shade-solutions-qld-imag-748bb.firebaseapp.com",
+            projectId: "shade-solutions-qld-imag-748bb",
+            storageBucket: "shade-solutions-qld-imag-748bb.firebasestorage.app",
+            messagingSenderId: "801527719863",
+            appId: "1:801527719863:web:d3dde406d0e354fe7caa32"
+        };
+
+        // Initialize Firebase
+        let db, storage;
+        try {
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.firestore();
+            storage = firebase.storage();
+        } catch (error) {
+            console.error("Firebase initialization error:", error);
+        }
+
+        // Icons
         const Plus = () => (
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -83,36 +109,17 @@
             </svg>
         );
 
-        // Simple localStorage wrapper
-        const storage = {
-            get: (key) => {
-                try {
-                    const value = localStorage.getItem(key);
-                    return value ? { key, value } : null;
-                } catch (error) {
-                    return null;
-                }
-            },
-            set: (key, value) => {
-                try {
-                    localStorage.setItem(key, value);
-                    return { key, value };
-                } catch (error) {
-                    return null;
-                }
-            }
-        };
-
         function ShadeTracker() {
             const [images, setImages] = useState([]);
             const [loading, setLoading] = useState(true);
             const [saving, setSaving] = useState(false);
+            const [uploading, setUploading] = useState(false);
             const [newEntry, setNewEntry] = useState({
                 filename: '',
                 location: '',
                 suggestedTopic: '',
                 sharepointDate: '',
-                imageData: null,
+                imageFile: null,
                 imagePreview: null
             });
 
@@ -121,29 +128,28 @@
             }, []);
 
             const loadData = () => {
-                try {
-                    const result = storage.get('shade-images-data');
-                    if (result && result.value) {
-                        setImages(JSON.parse(result.value));
-                    }
-                } catch (error) {
-                    console.log('No existing data found, starting fresh');
-                } finally {
+                if (!db) {
                     setLoading(false);
+                    alert('Firebase not configured properly.');
+                    return;
                 }
-            };
 
-            const saveData = (updatedImages) => {
-                setSaving(true);
-                try {
-                    storage.set('shade-images-data', JSON.stringify(updatedImages));
-                    setImages(updatedImages);
-                    setTimeout(() => setSaving(false), 500);
-                } catch (error) {
-                    alert('Error saving data. Please try again.');
-                    console.error('Save error:', error);
-                    setSaving(false);
-                }
+                // Real-time listener
+                const unsubscribe = db.collection('images')
+                    .orderBy('addedDate', 'desc')
+                    .onSnapshot((snapshot) => {
+                        const loadedImages = [];
+                        snapshot.forEach((doc) => {
+                            loadedImages.push({ id: doc.id, ...doc.data() });
+                        });
+                        setImages(loadedImages);
+                        setLoading(false);
+                    }, (error) => {
+                        console.error('Error loading data:', error);
+                        setLoading(false);
+                    });
+
+                return () => unsubscribe();
             };
 
             const handleImageUpload = (e) => {
@@ -154,7 +160,6 @@
                         return;
                     }
 
-                    // Get file's last modified date as fallback
                     const fileDate = file.lastModified ? new Date(file.lastModified) : new Date();
                     const formattedDate = fileDate.toISOString().split('T')[0];
 
@@ -162,7 +167,7 @@
                     reader.onloadend = () => {
                         setNewEntry({
                             ...newEntry,
-                            imageData: reader.result,
+                            imageFile: file,
                             imagePreview: reader.result,
                             filename: newEntry.filename || file.name,
                             sharepointDate: newEntry.sharepointDate || formattedDate
@@ -175,83 +180,110 @@
             const removeImage = () => {
                 setNewEntry({
                     ...newEntry,
-                    imageData: null,
+                    imageFile: null,
                     imagePreview: null
                 });
             };
 
-            const addImage = () => {
+            const addImage = async () => {
                 if (!newEntry.filename.trim()) {
                     alert('Please enter a filename');
                     return;
                 }
 
-                const image = {
-                    id: Date.now(),
-                    filename: newEntry.filename,
-                    location: newEntry.location,
-                    suggestedTopic: newEntry.suggestedTopic,
-                    sharepointDate: newEntry.sharepointDate,
-                    imageData: newEntry.imageData,
-                    productName: '',
-                    supplier: '',
-                    reasonForInstall: '',
-                    additionalNotes: '',
-                    approvalStatus: null,
-                    completed: false,
-                    addedDate: new Date().toISOString()
-                };
+                if (!newEntry.imageFile) {
+                    alert('Please upload an image');
+                    return;
+                }
 
-                const updated = [...images, image];
-                saveData(updated);
-                setNewEntry({ 
-                    filename: '', 
-                    location: '', 
-                    suggestedTopic: '',
-                    sharepointDate: '',
-                    imageData: null,
-                    imagePreview: null
-                });
+                setUploading(true);
+
+                try {
+                    // Upload image to Firebase Storage
+                    const storageRef = storage.ref();
+                    const imageRef = storageRef.child(`images/${Date.now()}_${newEntry.imageFile.name}`);
+                    const uploadTask = await imageRef.put(newEntry.imageFile);
+                    const imageUrl = await uploadTask.ref.getDownloadURL();
+
+                    // Save data to Firestore
+                    await db.collection('images').add({
+                        filename: newEntry.filename,
+                        location: newEntry.location,
+                        suggestedTopic: newEntry.suggestedTopic,
+                        sharepointDate: newEntry.sharepointDate,
+                        imageUrl: imageUrl,
+                        productName: '',
+                        supplier: '',
+                        reasonForInstall: '',
+                        additionalNotes: '',
+                        approvalStatus: null,
+                        completed: false,
+                        addedDate: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+
+                    setNewEntry({
+                        filename: '',
+                        location: '',
+                        suggestedTopic: '',
+                        sharepointDate: '',
+                        imageFile: null,
+                        imagePreview: null
+                    });
+                } catch (error) {
+                    console.error('Error adding image:', error);
+                    alert('Error adding image: ' + error.message);
+                } finally {
+                    setUploading(false);
+                }
             };
 
-            const handleApproval = (id, approved) => {
-                const updated = images.map(img => {
-                    if (img.id === id) {
-                        return {
-                            ...img,
-                            approvalStatus: approved,
-                            completed: !approved
-                        };
-                    }
-                    return img;
-                });
-                saveData(updated);
+            const handleApproval = async (id, approved) => {
+                setSaving(true);
+                try {
+                    await db.collection('images').doc(id).update({
+                        approvalStatus: approved,
+                        completed: !approved
+                    });
+                } catch (error) {
+                    console.error('Error updating approval:', error);
+                    alert('Error updating. Please try again.');
+                } finally {
+                    setSaving(false);
+                }
             };
 
-            const updateImage = (id, field, value) => {
-                const updated = images.map(img => {
-                    if (img.id === id) {
-                        return { ...img, [field]: value };
-                    }
-                    return img;
-                });
-                saveData(updated);
+            const updateImage = async (id, field, value) => {
+                try {
+                    await db.collection('images').doc(id).update({
+                        [field]: value
+                    });
+                } catch (error) {
+                    console.error('Error updating field:', error);
+                }
             };
 
-            const markAsCompleted = (id) => {
-                const updated = images.map(img => {
-                    if (img.id === id) {
-                        return { ...img, completed: true };
-                    }
-                    return img;
-                });
-                saveData(updated);
+            const markAsCompleted = async (id) => {
+                setSaving(true);
+                try {
+                    await db.collection('images').doc(id).update({
+                        completed: true
+                    });
+                } catch (error) {
+                    console.error('Error marking complete:', error);
+                    alert('Error updating. Please try again.');
+                } finally {
+                    setSaving(false);
+                }
             };
 
-            const deleteImage = (id) => {
-                if (confirm('Are you sure you want to delete this entry?')) {
-                    const updated = images.filter(img => img.id !== id);
-                    saveData(updated);
+            const deleteImage = async (id) => {
+                if (!confirm('Are you sure you want to delete this entry?')) return;
+
+                try {
+                    await db.collection('images').doc(id).delete();
+                } catch (error) {
+                    console.error('Error deleting:', error);
+                    alert('Error deleting. Please try again.');
                 }
             };
 
@@ -283,7 +315,7 @@
                                 Shade Solutions QLD - Image Details Tracker
                             </h1>
                             <p className="text-gray-600 mb-4">
-                                Please fill in image details below.
+                                Share this link with Shade Solutions QLD to collaboratively fill in product details
                             </p>
                             
                             <div className="grid grid-cols-3 gap-4">
@@ -305,7 +337,6 @@
                         <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
                             <h2 className="text-xl font-semibold text-gray-900 mb-4">Add New Image</h2>
                             
-                            {/* Image Upload Section */}
                             <div className="mb-4">
                                 {newEntry.imagePreview ? (
                                     <div className="relative inline-block">
@@ -372,10 +403,11 @@
                             </div>
                             <button
                                 onClick={addImage}
-                                className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                disabled={uploading}
+                                className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:bg-gray-400"
                             >
                                 <Plus />
-                                Add Image
+                                {uploading ? 'Uploading...' : 'Add Image'}
                             </button>
                         </div>
 
@@ -428,17 +460,16 @@
                                             </button>
                                         </div>
 
-                                        {img.imageData && (
+                                        {img.imageUrl && (
                                             <div className="mb-4">
                                                 <img 
-                                                    src={img.imageData} 
+                                                    src={img.imageUrl} 
                                                     alt={img.filename}
                                                     className="w-full h-auto object-contain rounded-lg shadow-md"
                                                 />
                                             </div>
                                         )}
 
-                                        {/* Approval Section */}
                                         {img.approvalStatus === null && !img.completed && (
                                             <div className="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
                                                 <p className="text-lg font-semibold text-gray-900 mb-3">
@@ -463,7 +494,6 @@
                                             </div>
                                         )}
 
-                                        {/* Details Form - Only show if approved */}
                                         {img.approvalStatus === true && !img.completed && (
                                             <>
                                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -526,7 +556,6 @@
                                             </>
                                         )}
 
-                                        {/* Show completed info */}
                                         {img.completed && (
                                             <div className="bg-green-50 p-4 rounded-lg">
                                                 {img.approvalStatus === false ? (
@@ -547,10 +576,10 @@
                             )}
                         </div>
 
-                        {saving && (
+                        {(saving || uploading) && (
                             <div className="fixed bottom-4 right-4 bg-blue-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2">
                                 <span className="animate-pulse"><Save /></span>
-                                Saving...
+                                {uploading ? 'Uploading...' : 'Saving...'}
                             </div>
                         )}
                     </div>
